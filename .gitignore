@@ -2,4 +2,7 @@ venv/
 .env
 data/regulatory.db
 __pycache__/
+reports/
+pipeline.log
+*.log
 
