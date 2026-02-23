@@ -222,6 +222,7 @@ def reset_for_reprocessing():
             inventory_score = NULL,
             accounting_score = NULL,
             pos_score = NULL,
+            regulatory_compliance_score = NULL,
             impacted_module = NULL,
             severity = NULL,
             impact_flag = NULL,
@@ -261,6 +262,7 @@ def reset_all_analyzed():
             inventory_score = NULL,
             accounting_score = NULL,
             pos_score = NULL,
+            regulatory_compliance_score = NULL,
             impacted_module = NULL,
             severity = NULL,
             impact_flag = NULL,
@@ -306,6 +308,13 @@ def save_analysis(publication_id: int, analysis_data: dict):
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Asegurar que la columna regulatory_compliance_score existe
+    try:
+        cursor.execute("ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # La columna ya existe
+
     cursor.execute("""
         UPDATE publications SET
             primary_domain = ?,
@@ -320,6 +329,7 @@ def save_analysis(publication_id: int, analysis_data: dict):
             inventory_score = ?,
             accounting_score = ?,
             pos_score = ?,
+            regulatory_compliance_score = ?,
             impacted_module = ?,
             severity = ?,
             impact_flag = ?,
@@ -340,6 +350,7 @@ def save_analysis(publication_id: int, analysis_data: dict):
         analysis_data["inventory_score"],
         analysis_data["accounting_score"],
         analysis_data["pos_score"],
+        analysis_data.get("regulatory_compliance_score", 0),
         analysis_data["impacted_module"],
         analysis_data["severity"],
         analysis_data["impact_flag"],

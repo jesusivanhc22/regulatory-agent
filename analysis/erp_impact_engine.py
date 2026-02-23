@@ -52,6 +52,76 @@ POS_WORDS = [
     "venta y suministro de medicamentos",
 ]
 
+# ==============================
+# CUMPLIMIENTO REGULATORIO SANITARIO
+# (Lo que obliga a cambios en el software ERP)
+# ==============================
+
+REGULATORY_COMPLIANCE_WORDS = [
+    # Validación de sistema
+    "sistema computarizado",
+    "sistema computarizado validado",
+    "validación de sistemas",
+    "registro electrónico",
+    "registros electrónicos",
+    "firma electrónica avanzada",
+    "bitácora electrónica",
+    # Trazabilidad y control de inventario sanitario
+    "trazabilidad",
+    "registro de entradas y salidas",
+    "control de existencias",
+    "control de inventario sanitario",
+    "registro de movimientos",
+    "cadena de suministro",
+    "cadena de distribución",
+    # Antimicrobianos y controlados
+    "antimicrobiano",
+    "antimicrobianos",
+    "antibiótico",
+    "psicotrópico",
+    "estupefaciente",
+    "sustancia controlada",
+    "receta retenida",
+    "receta con código de barras",
+    "libro de control",
+    # Responsable sanitario
+    "responsable sanitario",
+    "aviso de responsable sanitario",
+    "aviso de funcionamiento",
+    "licencia sanitaria",
+    # Farmacovigilancia y tecnovigilancia
+    "farmacovigilancia",
+    "tecnovigilancia",
+    "reporte de sospecha",
+    "reacción adversa",
+    "evento adverso",
+    "notificación de sospecha",
+    "alertamiento sanitario",
+    "alerta sanitaria",
+    # Temperatura y almacenamiento
+    "control de temperatura",
+    "cadena de frío",
+    "refrigeración",
+    "condiciones de almacenamiento",
+    "temperatura de conservación",
+    "termómetro calibrado",
+    "registro de temperatura",
+    # Residuos
+    "residuos peligrosos",
+    "residuos peligrosos biológico-infecciosos",
+    "RPBI",
+    "manejo de residuos",
+    # Buenas prácticas
+    "buenas prácticas de dispensación",
+    "buenas prácticas de almacenamiento",
+    "buenas prácticas de distribución",
+    "buenas prácticas de farmacia",
+    # Suplemento FEUM
+    "suplemento para establecimientos",
+    "farmacopea de los estados unidos mexicanos",
+    "FEUM",
+]
+
 
 # ==============================
 # FUNCIÓN AUXILIAR
@@ -79,7 +149,8 @@ def evaluate_erp_impact(text: str):
         "TAX_REPORTING": calculate_module_score(text, TAX_REPORTING_WORDS),
         "INVENTORY": calculate_module_score(text, INVENTORY_WORDS),
         "ACCOUNTING": calculate_module_score(text, ACCOUNTING_WORDS),
-        "POS": calculate_module_score(text, POS_WORDS)
+        "POS": calculate_module_score(text, POS_WORDS),
+        "REGULATORY_COMPLIANCE": calculate_module_score(text, REGULATORY_COMPLIANCE_WORDS),
     }
 
     max_score = max(scores.values())

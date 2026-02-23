@@ -4,7 +4,7 @@
 # ==============================
 
 HEALTH_KEYWORDS = [
-    # NOMs clave para farmacias
+    # NOMs clave para farmacias privadas
     "NOM-059-SSA",
     "NOM-072-SSA",
     "NOM-176-SSA",
@@ -15,7 +15,6 @@ HEALTH_KEYWORDS = [
     "NOM-240",
     "NOM-241",
     # Instituciones y reguladores
-    "Secretaría de Salud",
     "COFEPRIS",
     # Farmacias y medicamentos
     "farmacopea",
@@ -27,16 +26,45 @@ HEALTH_KEYWORDS = [
     "medicamentos controlados",
     "receta electrónica",
     "receta médica",
-    # Operación sanitaria
-    "expediente clínico",
+    "receta retenida",
+    "receta con código de barras",
+    # Antimicrobianos y controlados
+    "antimicrobiano",
+    "antimicrobianos",
+    "antibiótico",
+    "psicotrópico",
+    "estupefaciente",
+    "sustancia controlada",
+    # Operación sanitaria farmacia
     "farmacovigilancia",
+    "tecnovigilancia",
     "insumos para la salud",
     "registro sanitario",
     "dispositivo médico",
-    "control sanitario",
-    "buenas prácticas de fabricación",
+    "responsable sanitario",
+    "aviso de funcionamiento",
+    "licencia sanitaria",
+    "aviso de responsable sanitario",
+    # Sistema y trazabilidad
+    "sistema computarizado validado",
+    "sistema computarizado",
+    "trazabilidad",
+    "registro electrónico",
+    "cadena de frío",
+    "control de temperatura",
+    # Buenas prácticas farmacia privada
+    "buenas prácticas de dispensación",
     "buenas prácticas de almacenamiento",
     "buenas prácticas de distribución",
+    "buenas prácticas de farmacia",
+    # FEUM
+    "farmacopea de los estados unidos mexicanos",
+    "FEUM",
+    # Alertas y residuos
+    "alerta sanitaria",
+    "alertamiento sanitario",
+    "residuos peligrosos",
+    "RPBI",
 ]
 
 # ==============================
@@ -105,6 +133,7 @@ CURRENCY_KEYWORDS = [
 # ==============================
 
 OBLIGATION_KEYWORDS = [
+    # Obligaciones generales
     "deberá registrar",
     "deberá reportar",
     "deberá conservar",
@@ -118,4 +147,21 @@ OBLIGATION_KEYWORDS = [
     "obligación fiscal",
     "estará obligado",
     "se obliga a",
+    # Obligaciones específicas de farmacia/sanitarias
+    "deberá validar",
+    "deberá notificar",
+    "deberá almacenar",
+    "deberá llevar registro",
+    "deberá llevar un registro",
+    "deberá llevar una bitácora",
+    "deberá verificar",
+    "deberá dispensar",
+    "deberá controlar",
+    "deberá monitorear",
+    "deberá documentar",
+    "deberá garantizar",
+    "deberá mantener",
+    "obligado a reportar",
+    "obligado a notificar",
+    "obligado a registrar",
 ]
