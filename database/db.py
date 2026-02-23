@@ -2,11 +2,17 @@ import logging
 import os
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join("data", "regulatory.db")
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "data" / "regulatory.db"
 
+
+# ==============================
+# CONEXIÓN
+# ==============================
 
 @contextmanager
 def _get_connection():
@@ -22,6 +28,18 @@ def _get_connection():
     finally:
         conn.close()
 
+
+def get_connection():
+    """Retorna una conexión SQLite con row_factory para acceso por nombre de columna."""
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+# ==============================
+# INICIALIZACIÓN (origin/main)
+# ==============================
 
 def init_db():
     """Crea la tabla de publicaciones si no existe."""
@@ -41,6 +59,10 @@ def init_db():
         """)
     logger.info("Base de datos inicializada.")
 
+
+# ==============================
+# OPERACIONES BATCH (origin/main)
+# ==============================
 
 def save_discovered_batch(publications):
     """Inserta publicaciones en batch, ignorando duplicados por URL.
@@ -77,7 +99,7 @@ def save_discovered_batch(publications):
 
 
 def get_discovered(limit=100):
-    """Obtiene publicaciones pendientes de análisis.
+    """Obtiene publicaciones pendientes de análisis (versión con limit).
 
     Returns:
         list[tuple]: lista de (id, title, url).
@@ -128,3 +150,221 @@ def mark_batch_as_analyzed(batch_results):
         """, [(cat, pri, sc, pid) for pid, cat, pri, sc in batch_results])
 
     logger.info("Batch de %d publicaciones marcadas como analizadas.", len(batch_results))
+
+
+# ==============================
+# CONTENT PIPELINE (stash)
+# ==============================
+
+def get_discovered_publications():
+    """
+    Obtiene publicaciones descubiertas que aún no tienen contenido descargado.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, title, url FROM publications
+        WHERE status = 'DISCOVERED'
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def save_content(publication_id: int, raw_html: str, full_text: str,
+                 content_type: str = "HTML", pdf_path: str = None, pdf_hash: str = None):
+    """
+    Guarda el contenido descargado y marca como CONTENT_FETCHED.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE publications SET
+            raw_html = ?,
+            full_text = ?,
+            content_type = ?,
+            pdf_path = ?,
+            pdf_hash = ?,
+            status = 'CONTENT_FETCHED'
+        WHERE id = ?
+    """, (raw_html, full_text, content_type, pdf_path, pdf_hash, publication_id))
+
+    conn.commit()
+    conn.close()
+
+
+# ==============================
+# REPROCESSING (stash)
+# ==============================
+
+def reset_for_reprocessing():
+    """
+    Resetea publicaciones ANALYZED que no tienen contenido para reprocesarlas.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE publications
+        SET status = 'DISCOVERED',
+            primary_domain = NULL,
+            health_score = NULL,
+            fiscal_score = NULL,
+            retail_score = NULL,
+            border_region_score = NULL,
+            currency_score = NULL,
+            operational_obligation_score = NULL,
+            invoicing_score = NULL,
+            tax_reporting_score = NULL,
+            inventory_score = NULL,
+            accounting_score = NULL,
+            pos_score = NULL,
+            impacted_module = NULL,
+            severity = NULL,
+            impact_flag = NULL,
+            impact_reason = NULL,
+            analyzed_at = NULL
+        WHERE status = 'ANALYZED'
+          AND (full_text IS NULL OR full_text = '')
+    """)
+
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return affected
+
+
+def reset_all_analyzed():
+    """
+    Resetea TODAS las publicaciones ANALYZED a CONTENT_FETCHED
+    para re-analizarlas con reglas actualizadas.
+    Solo aplica a las que tienen full_text (contenido descargado).
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE publications
+        SET status = 'CONTENT_FETCHED',
+            primary_domain = NULL,
+            health_score = NULL,
+            fiscal_score = NULL,
+            retail_score = NULL,
+            border_region_score = NULL,
+            currency_score = NULL,
+            operational_obligation_score = NULL,
+            invoicing_score = NULL,
+            tax_reporting_score = NULL,
+            inventory_score = NULL,
+            accounting_score = NULL,
+            pos_score = NULL,
+            impacted_module = NULL,
+            severity = NULL,
+            impact_flag = NULL,
+            impact_reason = NULL,
+            analyzed_at = NULL
+        WHERE status = 'ANALYZED'
+          AND full_text IS NOT NULL
+          AND full_text != ''
+    """)
+
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return affected
+
+
+# ==============================
+# ANALYSIS PIPELINE (stash)
+# ==============================
+
+def get_pending_publications():
+    """
+    Obtiene publicaciones que ya tienen contenido
+    pero aún no han sido analizadas.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT * FROM publications
+        WHERE status IN ('DISCOVERED', 'CONTENT_FETCHED')
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def save_analysis(publication_id: int, analysis_data: dict):
+    """
+    Guarda el resultado del análisis y marca como ANALYZED
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE publications SET
+            primary_domain = ?,
+            health_score = ?,
+            fiscal_score = ?,
+            retail_score = ?,
+            border_region_score = ?,
+            currency_score = ?,
+            operational_obligation_score = ?,
+            invoicing_score = ?,
+            tax_reporting_score = ?,
+            inventory_score = ?,
+            accounting_score = ?,
+            pos_score = ?,
+            impacted_module = ?,
+            severity = ?,
+            impact_flag = ?,
+            impact_reason = ?,
+            analyzed_at = ?,
+            status = 'ANALYZED'
+        WHERE id = ?
+    """, (
+        analysis_data["primary_domain"],
+        analysis_data["health_score"],
+        analysis_data["fiscal_score"],
+        analysis_data["retail_score"],
+        analysis_data["border_region_score"],
+        analysis_data["currency_score"],
+        analysis_data["operational_obligation_score"],
+        analysis_data["invoicing_score"],
+        analysis_data["tax_reporting_score"],
+        analysis_data["inventory_score"],
+        analysis_data["accounting_score"],
+        analysis_data["pos_score"],
+        analysis_data["impacted_module"],
+        analysis_data["severity"],
+        analysis_data["impact_flag"],
+        analysis_data["impact_reason"],
+        analysis_data["analyzed_at"],
+        publication_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def get_impact_publications():
+    """
+    Obtiene publicaciones con impacto detectado
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT * FROM publications
+        WHERE impact_flag = 1
+        ORDER BY analyzed_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows

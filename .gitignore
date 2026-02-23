@@ -1,8 +1,7 @@
 venv/
-.env
 data/regulatory.db
+data/pdfs/
 __pycache__/
 reports/
 pipeline.log
 *.log
-

@@ -1,18 +1,20 @@
 import logging
 import sys
 
-from analysis.rule_classifier import classify
-from config import BATCH_SIZE
+from analysis.rule_classifier import analyze_publication
 from database.db import (
-    get_discovered,
-    init_db,
-    mark_batch_as_analyzed,
-    save_discovered_batch,
+    get_discovered_publications,
+    get_pending_publications,
+    save_content,
+    save_analysis,
+    get_impact_publications
 )
-from reporting.report_generator import generate
-from scrapers.dof_scraper import fetch_dof
+from scrapers.content_fetcher import fetch_content
+from scrapers.pdf_downloader import download_pdf
+from scrapers.text_extractor import extract_from_html, extract_from_pdf
+from reporting.executive_report_generator import generate_executive_summary
 
-# ── Configuración de logging ────────────────────────────────────────
+# -- Configuración de logging ------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -25,90 +27,121 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
+def run_content_pipeline():
+    """
+    Descarga el contenido (HTML + PDF) de publicaciones descubiertas
+    y extrae el texto completo para analisis posterior.
+    """
+
     logger.info("=" * 60)
-    logger.info("PIPELINE INICIADO - PASO B MEJORADO")
+    logger.info("CONTENT PIPELINE INICIADO")
     logger.info("=" * 60)
 
-    # 1. Inicializar BD
-    init_db()
+    publications = get_discovered_publications()
 
-    # 2. Scraping
-    scraped = fetch_dof()
-
-    if not scraped:
-        logger.warning("No se obtuvieron publicaciones del DOF.")
+    if not publications:
+        logger.info("No hay publicaciones pendientes de descarga.")
         return
 
-    # 3. Guardar en batch (INSERT OR IGNORE maneja duplicados)
-    new_count = save_discovered_batch(scraped)
-    logger.info("Resumen scraping: %d scrapeadas, %d nuevas.", len(scraped), new_count)
+    logger.info("Publicaciones por descargar: %d", len(publications))
 
-    # 4. Obtener pendientes
-    discovered = get_discovered(limit=100)
-    logger.info("Publicaciones pendientes de análisis: %d", len(discovered))
+    success = 0
+    errors = 0
 
-    if not discovered:
-        logger.info("No hay publicaciones pendientes. Pipeline terminado.")
+    for pub in publications:
+        pub_id = pub["id"]
+        title = pub["title"]
+        url = pub["url"]
+
+        logger.info("  Descargando: %s...", title[:70])
+
+        try:
+            # 1. Fetch HTML y detectar PDF
+            raw_html, pdf_url = fetch_content(url)
+
+            if not raw_html:
+                logger.warning("Sin contenido HTML para: %s", title[:50])
+                errors += 1
+                continue
+
+            # 2. Extraer texto del HTML
+            full_text = extract_from_html(raw_html)
+            content_type = "HTML"
+            pdf_path = None
+            pdf_hash = None
+
+            # 3. Si hay PDF, descargar y extraer texto adicional
+            if pdf_url:
+                pdf_path, pdf_hash = download_pdf(pdf_url)
+
+                if pdf_path:
+                    pdf_text = extract_from_pdf(pdf_path)
+                    if pdf_text:
+                        full_text = full_text + "\n\n" + pdf_text
+                        content_type = "HTML+PDF"
+
+            # 4. Guardar en BD
+            save_content(
+                publication_id=pub_id,
+                raw_html=raw_html,
+                full_text=full_text,
+                content_type=content_type,
+                pdf_path=pdf_path,
+                pdf_hash=pdf_hash,
+            )
+
+            success += 1
+
+        except Exception:
+            logger.exception("Error procesando %s", title[:50])
+            errors += 1
+            continue
+
+    logger.info("=" * 60)
+    logger.info("CONTENT PIPELINE COMPLETADO: %d exitosas, %d errores.", success, errors)
+    logger.info("=" * 60)
+
+
+def run_analysis_pipeline():
+
+    logger.info("=" * 60)
+    logger.info("ANALYSIS PIPELINE INICIADO")
+    logger.info("=" * 60)
+
+    publications = get_pending_publications()
+
+    if not publications:
+        logger.info("No hay publicaciones pendientes.")
         return
 
-    # 5. Procesar en batches
-    total_processed = 0
-    total_errors = 0
+    logger.info("Publicaciones pendientes: %d", len(publications))
 
-    for i in range(0, len(discovered), BATCH_SIZE):
-        batch = discovered[i:i + BATCH_SIZE]
-        batch_number = (i // BATCH_SIZE) + 1
+    for pub in publications:
+        logger.info("Analizando: %s", pub['title'])
 
-        logger.info("Procesando batch %d (%d publicaciones)...", batch_number, len(batch))
+        analysis = analyze_publication(
+            title=pub["title"],
+            full_text=pub["full_text"] or ""
+        )
 
-        results = []
-        db_updates = []
+        save_analysis(pub["id"], analysis)
 
-        for pub_id, title, url in batch:
-            try:
-                category, priority, score = classify(title)
+    logger.info("Analisis completado.")
 
-                results.append({
-                    "title": title,
-                    "category": category,
-                    "priority": priority,
-                    "score": score,
-                    "url": url,
-                })
+    # Generar reporte ejecutivo
+    impact_pubs = get_impact_publications()
 
-                db_updates.append((pub_id, category, priority, score))
-                total_processed += 1
+    report = generate_executive_summary(impact_pubs)
 
-            except Exception:
-                logger.exception("Error clasificando pub_id=%d: '%s'", pub_id, title[:80])
-                total_errors += 1
-                continue
+    with open("impact_report.md", "w", encoding="utf-8") as f:
+        f.write(report)
 
-        # Marcar batch completo en una sola transacción
-        if db_updates:
-            try:
-                mark_batch_as_analyzed(db_updates)
-            except Exception:
-                logger.exception("Error guardando batch %d en BD.", batch_number)
-                continue
+    logger.info("Reporte generado: impact_report.md (%d con impacto)", len(impact_pubs))
 
-        # Generar reporte solo si hay resultados
-        if results:
-            try:
-                filename = generate(results, batch_number=batch_number)
-                logger.info("Reporte batch %d: %s", batch_number, filename)
-            except Exception:
-                logger.exception("Error generando reporte batch %d.", batch_number)
-
-    # 6. Resumen final
     logger.info("=" * 60)
-    logger.info(
-        "PIPELINE COMPLETADO: %d procesadas, %d errores.",
-        total_processed, total_errors,
-    )
+    logger.info("ANALYSIS PIPELINE COMPLETADO")
     logger.info("=" * 60)
 
 
 if __name__ == "__main__":
-    main()
+    run_analysis_pipeline()
