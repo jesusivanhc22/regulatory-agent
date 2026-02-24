@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline - Monitor Regulatorio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-gear"></i> Estado del Pipeline</h2>
+
+<!-- Alertas de estado -->
+{% if pipeline_state.running %}
+<div class="alert alert-info d-flex align-items-center">
+    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+    <strong>Pipeline en ejecucion...</strong> Actualice la pagina para ver el progreso.
+</div>
+{% endif %}
+
+{% if pipeline_state.last_error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> {{ pipeline_state.last_error }}
+</div>
+{% endif %}
+
+{% if pipeline_state.last_action and not pipeline_state.running %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> {{ pipeline_state.last_action }}
+</div>
+{% endif %}
+
+<!-- Contadores -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-search fs-2 text-primary"></i>
+                <h3 class="fw-bold mt-2">{{ counts.get('DISCOVERED', 0) }}</h3>
+                <small class="text-muted">Descubiertas</small>
+                <br><small class="text-muted">(pendientes de contenido)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-download fs-2 text-info"></i>
+                <h3 class="fw-bold mt-2">{{ counts.get('CONTENT_FETCHED', 0) }}</h3>
+                <small class="text-muted">Con Contenido</small>
+                <br><small class="text-muted">(pendientes de analisis)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-check-circle fs-2 text-success"></i>
+                <h3 class="fw-bold mt-2">{{ counts.get('ANALYZED', 0) }}</h3>
+                <small class="text-muted">Analizadas</small>
+                <br><small class="text-muted">(proceso completo)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center bg-dark text-white">
+            <div class="card-body">
+                <i class="bi bi-database fs-2"></i>
+                <h3 class="fw-bold mt-2">{{ counts.get('TOTAL', 0) }}</h3>
+                <small>Total en Base de Datos</small>
+                <br><small>({{ counts.get('WITH_IMPACT', 0) }} con impacto)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barra de progreso -->
+{% set total = counts.get('TOTAL', 1) %}
+{% set analyzed_pct = ((counts.get('ANALYZED', 0) / total) * 100) | int if total > 0 else 0 %}
+{% set fetched_pct = ((counts.get('CONTENT_FETCHED', 0) / total) * 100) | int if total > 0 else 0 %}
+{% set discovered_pct = ((counts.get('DISCOVERED', 0) / total) * 100) | int if total > 0 else 0 %}
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white">
+        <h6 class="mb-0">Progreso General</h6>
+    </div>
+    <div class="card-body">
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar bg-success" style="width: {{ analyzed_pct }}%">
+                Analizadas {{ analyzed_pct }}%
+            </div>
+            <div class="progress-bar bg-info" style="width: {{ fetched_pct }}%">
+                Con contenido {{ fetched_pct }}%
+            </div>
+            <div class="progress-bar bg-primary" style="width: {{ discovered_pct }}%">
+                Descubiertas {{ discovered_pct }}%
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones -->
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-play-circle"></i> Ejecutar Pipeline</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Descarga contenido de publicaciones pendientes y ejecuta el analisis completo.
+                    Ideal para procesar nuevas publicaciones descubiertas.
+                </p>
+                <form method="post" action="{{ url_for('trigger_analysis') }}">
+                    <button type="submit" class="btn btn-primary"
+                            {% if pipeline_state.running %}disabled{% endif %}>
+                        <i class="bi bi-play-fill"></i> Ejecutar Analisis
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-arrow-repeat"></i> Re-analizar</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Resetea todas las publicaciones analizadas y las re-analiza con las reglas actuales.
+                    Usar cuando se actualizan keywords o umbrales.
+                </p>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#reanalyzeModal"
+                        {% if pipeline_state.running %}disabled{% endif %}>
+                    <i class="bi bi-arrow-repeat"></i> Re-analizar Todo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmacion -->
+<div class="modal fade" id="reanalyzeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Re-analisis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Esto reseteara <strong>{{ counts.get('ANALYZED', 0) }}</strong> publicaciones analizadas
+                   y las re-analizara con las reglas actuales.</p>
+                <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> El proceso puede tomar varios minutos.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="post" action="{{ url_for('trigger_reanalysis') }}" class="d-inline">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-repeat"></i> Confirmar Re-analisis
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if pipeline_state.running %}
+<script>
+    // Auto-refresh cada 10 segundos mientras el pipeline esta corriendo
+    setTimeout(function() { window.location.reload(); }, 10000);
+</script>
+{% endif %}
+{% endblock %}

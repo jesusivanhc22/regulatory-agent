@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% from "_macros.html" import severity_badge, domain_badge, module_badge, source_badge, score_bar %}
+
+{% block title %}Detalle - {{ pub.title[:60] }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('publications_list') }}">Publicaciones</a></li>
+        <li class="breadcrumb-item active">Detalle</li>
+    </ol>
+</nav>
+
+<div class="d-flex align-items-start mb-3">
+    {{ severity_badge(pub.severity) }}
+    <h3 class="ms-2 mb-0">{{ pub.title }}</h3>
+</div>
+
+<div class="row g-3">
+    <!-- Identificacion -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Identificacion</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <th class="text-muted" style="width: 140px;">URL</th>
+                        <td>
+                            <a href="{{ pub.url }}" target="_blank" class="text-decoration-none">
+                                <i class="bi bi-box-arrow-up-right"></i> Ver en DOF
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Fecha</th>
+                        <td>{{ pub.publication_date or 'No disponible' }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Fuente</th>
+                        <td>{{ source_badge(pub.source) }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Estado</th>
+                        <td>
+                            {% if pub.status == 'ANALYZED' %}
+                            <span class="badge bg-success">Analizado</span>
+                            {% elif pub.status == 'CONTENT_FETCHED' %}
+                            <span class="badge bg-info">Con contenido</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Descubierto</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Tipo contenido</th>
+                        <td>{{ pub.content_type or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Analizado el</th>
+                        <td>{{ pub.analyzed_at or 'Pendiente' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultado del Analisis -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-clipboard-data"></i> Resultado del Analisis</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <th class="text-muted" style="width: 140px;">Severidad</th>
+                        <td>{{ severity_badge(pub.severity) }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Dominio</th>
+                        <td>{{ domain_badge(pub.primary_domain) }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Modulo Impactado</th>
+                        <td>{{ module_badge(pub.impacted_module) }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Impacto</th>
+                        <td>
+                            {% if pub.impact_flag == 1 %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> SI</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Motivo</th>
+                        <td><small>{{ pub.impact_reason or 'N/A' }}</small></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scores Detallados -->
+<div class="row g-3 mt-1">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Scores por Dominio</h6>
+            </div>
+            <div class="card-body score-section">
+                {{ score_bar("Salud (Health)", pub.health_score) }}
+                {{ score_bar("Fiscal", pub.fiscal_score) }}
+                {{ score_bar("Retail", pub.retail_score) }}
+                {{ score_bar("Region Fronteriza", pub.border_region_score) }}
+                {{ score_bar("Moneda/Divisas", pub.currency_score) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-cpu"></i> Scores por Modulo ERP</h6>
+            </div>
+            <div class="card-body score-section">
+                {{ score_bar("Facturacion", pub.invoicing_score) }}
+                {{ score_bar("Reportes Fiscales", pub.tax_reporting_score) }}
+                {{ score_bar("Inventario", pub.inventory_score) }}
+                {{ score_bar("Contabilidad", pub.accounting_score) }}
+                {{ score_bar("Punto de Venta", pub.pos_score) }}
+                {{ score_bar("Cumplimiento Regulatorio", pub.regulatory_compliance_score) }}
+                <hr class="my-2">
+                {{ score_bar("Obligacion Operativa", pub.operational_obligation_score, color_class="bg-dark") }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Texto Completo -->
+{% if pub.full_text %}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-file-text"></i> Texto Completo</h6>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#fullText">
+            Mostrar / Ocultar
+        </button>
+    </div>
+    <div id="fullText" class="collapse">
+        <div class="card-body">
+            <pre class="text-preview bg-light p-3 rounded">{{ pub.full_text[:15000] }}{% if pub.full_text|length > 15000 %}
+
+... [Texto truncado - {{ pub.full_text|length }} caracteres totales]{% endif %}</pre>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-3 mb-4">
+    <a href="{{ url_for('publications_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Publicaciones
+    </a>
+    <a href="{{ pub.url }}" target="_blank" class="btn btn-outline-primary">
+        <i class="bi bi-box-arrow-up-right"></i> Ver Publicacion Original
+    </a>
+</div>
+{% endblock %}

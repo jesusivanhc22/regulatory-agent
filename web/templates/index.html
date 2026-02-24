@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "_macros.html" import severity_badge, domain_badge, module_badge %}
+
+{% block title %}Resumen - Monitor Regulatorio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Resumen General</h2>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Total Publicaciones</h6>
+                <h2 class="display-5 fw-bold">{{ stats.total }}</h2>
+                <small class="text-muted">
+                    {% if stats.last_analyzed %}
+                    Ultimo analisis: {{ stats.last_analyzed[:10] }}
+                    {% else %}
+                    Sin analisis
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm bg-info bg-opacity-10">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Con Impacto</h6>
+                <h2 class="display-5 fw-bold text-info">{{ stats.impact_count }}</h2>
+                <small class="text-muted">Publicaciones ALTA + MEDIA</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm bg-danger bg-opacity-10">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Severidad ALTA</h6>
+                <h2 class="display-5 fw-bold text-danger">{{ stats.by_severity.get('ALTA', 0) }}</h2>
+                <small class="text-muted">Requieren atencion inmediata</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm bg-warning bg-opacity-10">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Severidad MEDIA</h6>
+                <h2 class="display-5 fw-bold text-warning">{{ stats.by_severity.get('MEDIA', 0) }}</h2>
+                <small class="text-muted">Monitorear cambios</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Distribucion por Dominio -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Por Dominio</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for domain, count in stats.by_domain.items() | sort(attribute='1', reverse=true) %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ domain_badge(domain) }}
+                    <span class="badge bg-secondary rounded-pill">{{ count }}</span>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Sin datos</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Distribucion por Modulo ERP -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-cpu"></i> Por Modulo ERP</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for mod, count in stats.by_module.items() | sort(attribute='1', reverse=true) %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ module_badge(mod) }}
+                    <span class="badge bg-secondary rounded-pill">{{ count }}</span>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Sin datos</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Estado del Pipeline -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-gear"></i> Estado del Pipeline</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-search text-primary"></i> Descubiertas</span>
+                    <span class="badge bg-primary rounded-pill">{{ stats.by_status.get('DISCOVERED', 0) }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-download text-info"></i> Con Contenido</span>
+                    <span class="badge bg-info rounded-pill">{{ stats.by_status.get('CONTENT_FETCHED', 0) }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-check-circle text-success"></i> Analizadas</span>
+                    <span class="badge bg-success rounded-pill">{{ stats.by_status.get('ANALYZED', 0) }}</span>
+                </li>
+            </ul>
+            <div class="card-footer bg-white text-center">
+                <a href="{{ url_for('pipeline_status') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-gear"></i> Ir al Pipeline
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acceso rapido -->
+<div class="text-center mb-4">
+    <a href="{{ url_for('publications_list') }}" class="btn btn-primary btn-lg">
+        <i class="bi bi-list-ul"></i> Ver Publicaciones con Impacto ({{ stats.impact_count }})
+    </a>
+</div>
+{% endblock %}

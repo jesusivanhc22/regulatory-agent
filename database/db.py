@@ -18,7 +18,7 @@ DB_PATH = BASE_DIR / "data" / "regulatory.db"
 def _get_connection():
     """Context manager que provee una conexión SQLite con commit/rollback automático."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         yield conn
         conn.commit()
@@ -32,7 +32,7 @@ def _get_connection():
 def get_connection():
     """Retorna una conexión SQLite con row_factory para acceso por nombre de columna."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 

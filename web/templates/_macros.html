@@ -1,0 +1,87 @@
+{% macro severity_badge(severity) %}
+    {% if severity == "ALTA" %}
+        <span class="badge bg-danger">ALTA</span>
+    {% elif severity == "MEDIA" %}
+        <span class="badge bg-warning text-dark">MEDIA</span>
+    {% elif severity == "BAJA" %}
+        <span class="badge bg-secondary">BAJA</span>
+    {% else %}
+        <span class="badge bg-light text-dark">{{ severity or '-' }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro domain_badge(domain) %}
+    {% if domain == "HEALTH" %}
+        <span class="badge bg-success">Salud</span>
+    {% elif domain == "FISCAL" %}
+        <span class="badge bg-primary">Fiscal</span>
+    {% elif domain == "RETAIL" %}
+        <span class="badge bg-info text-dark">Retail</span>
+    {% elif domain == "BORDER" %}
+        <span class="badge bg-dark">Frontera</span>
+    {% elif domain == "CURRENCY" %}
+        <span class="badge bg-secondary">Moneda</span>
+    {% else %}
+        <span class="badge bg-light text-dark">{{ domain or '-' }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro module_badge(module) %}
+    {% set colors = {
+        'INVOICING': 'primary',
+        'TAX_REPORTING': 'info',
+        'INVENTORY': 'success',
+        'ACCOUNTING': 'warning',
+        'POS': 'secondary',
+        'REGULATORY_COMPLIANCE': 'danger'
+    } %}
+    {% set names = {
+        'INVOICING': 'Facturacion',
+        'TAX_REPORTING': 'Fiscal',
+        'INVENTORY': 'Inventario',
+        'ACCOUNTING': 'Contabilidad',
+        'POS': 'Punto de Venta',
+        'REGULATORY_COMPLIANCE': 'Cumplimiento Reg.'
+    } %}
+    <span class="badge bg-{{ colors.get(module, 'light') }} {% if module not in colors %}text-dark{% endif %}">
+        {{ names.get(module, module or '-') }}
+    </span>
+{% endmacro %}
+
+{% macro source_badge(source) %}
+    {% if source == "DOF" %}
+        <span class="badge bg-dark">DOF</span>
+    {% elif source == "COFEPRIS" %}
+        <span class="badge bg-success">COFEPRIS</span>
+    {% elif source == "SAT" %}
+        <span class="badge bg-primary">SAT</span>
+    {% else %}
+        <span class="badge bg-secondary">{{ source or 'DOF' }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro score_bar(label, value, max_val=10, color_class=None) %}
+    {% set v = value or 0 %}
+    {% set pct = ((v / max_val) * 100) | int if max_val > 0 else 0 %}
+    {% set pct = [pct, 100] | min %}
+    {% if not color_class %}
+        {% if v >= 5 %}{% set color_class = "bg-danger" %}
+        {% elif v >= 3 %}{% set color_class = "bg-warning" %}
+        {% elif v >= 1 %}{% set color_class = "bg-info" %}
+        {% else %}{% set color_class = "bg-secondary" %}
+        {% endif %}
+    {% endif %}
+    <div class="d-flex align-items-center mb-1">
+        <small class="text-muted me-2" style="min-width: 160px;">{{ label }}</small>
+        <div class="progress flex-grow-1" style="height: 20px;">
+            {% if v > 0 %}
+            <div class="progress-bar {{ color_class }}" style="width: {{ pct }}%">
+                {{ v }}
+            </div>
+            {% endif %}
+        </div>
+        {% if v == 0 %}
+        <small class="text-muted ms-2">0</small>
+        {% endif %}
+    </div>
+{% endmacro %}

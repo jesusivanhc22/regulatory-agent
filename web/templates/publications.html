@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "_macros.html" import severity_badge, domain_badge, module_badge, source_badge %}
+
+{% block title %}Publicaciones - Monitor Regulatorio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-list-ul"></i> Publicaciones con Impacto</h2>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Severidad</label>
+                <select name="severity" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option value="ALTA" {% if severity == 'ALTA' %}selected{% endif %}>ALTA</option>
+                    <option value="MEDIA" {% if severity == 'MEDIA' %}selected{% endif %}>MEDIA</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Dominio</label>
+                <select name="domain" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="HEALTH" {% if domain == 'HEALTH' %}selected{% endif %}>Salud</option>
+                    <option value="FISCAL" {% if domain == 'FISCAL' %}selected{% endif %}>Fiscal</option>
+                    <option value="RETAIL" {% if domain == 'RETAIL' %}selected{% endif %}>Retail</option>
+                    <option value="BORDER" {% if domain == 'BORDER' %}selected{% endif %}>Frontera</option>
+                    <option value="CURRENCY" {% if domain == 'CURRENCY' %}selected{% endif %}>Moneda</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Modulo</label>
+                <select name="module" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="INVOICING" {% if module == 'INVOICING' %}selected{% endif %}>Facturacion</option>
+                    <option value="TAX_REPORTING" {% if module == 'TAX_REPORTING' %}selected{% endif %}>Fiscal</option>
+                    <option value="INVENTORY" {% if module == 'INVENTORY' %}selected{% endif %}>Inventario</option>
+                    <option value="ACCOUNTING" {% if module == 'ACCOUNTING' %}selected{% endif %}>Contabilidad</option>
+                    <option value="POS" {% if module == 'POS' %}selected{% endif %}>Punto de Venta</option>
+                    <option value="REGULATORY_COMPLIANCE" {% if module == 'REGULATORY_COMPLIANCE' %}selected{% endif %}>Cumplimiento Reg.</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Fuente</label>
+                <select name="source" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option value="DOF" {% if source == 'DOF' %}selected{% endif %}>DOF</option>
+                    <option value="COFEPRIS" {% if source == 'COFEPRIS' %}selected{% endif %}>COFEPRIS</option>
+                    <option value="SAT" {% if source == 'SAT' %}selected{% endif %}>SAT</option>
+                </select>
+            </div>
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+            </div>
+            {% if severity or domain or module or source %}
+            <div class="col-md-2">
+                <a href="{{ url_for('publications_list') }}" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Resultados -->
+<p class="text-muted mb-2">
+    <strong>{{ total }}</strong> publicacion{{ 'es' if total != 1 else '' }} encontrada{{ 's' if total != 1 else '' }}
+</p>
+
+{% if publications %}
+<div class="table-responsive">
+    <table class="table table-hover bg-white shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th style="width: 90px;">Severidad</th>
+                <th>Titulo</th>
+                <th style="width: 90px;">Dominio</th>
+                <th style="width: 140px;">Modulo</th>
+                <th style="width: 80px;">Fuente</th>
+                <th style="width: 110px;">Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pub in publications %}
+            <tr>
+                <td>{{ severity_badge(pub.severity) }}</td>
+                <td>
+                    <a href="{{ url_for('publication_detail', pub_id=pub.id) }}" class="text-decoration-none">
+                        {{ pub.title[:120] }}{% if pub.title|length > 120 %}...{% endif %}
+                    </a>
+                </td>
+                <td>{{ domain_badge(pub.primary_domain) }}</td>
+                <td>{{ module_badge(pub.impacted_module) }}</td>
+                <td>{{ source_badge(pub.source) }}</td>
+                <td><small>{{ pub.publication_date or '-' }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginacion -->
+{% if total_pages > 1 %}
+<nav>
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page - 1 }}">
+                &laquo; Anterior
+            </a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 2 and p <= page + 2) %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ p }}">{{ p }}</a>
+            </li>
+            {% elif p == 4 or p == total_pages - 3 %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page + 1 }}">
+                Siguiente &raquo;
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No se encontraron publicaciones con los filtros seleccionados.
+</div>
+{% endif %}
+{% endblock %}
