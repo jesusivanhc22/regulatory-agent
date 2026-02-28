@@ -123,10 +123,13 @@ def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
     - SAT: sin filtro gobierno, pero requiere keywords específicos de farmacia
            (los keywords fiscales genéricos como 'impuesto', 'iva' no bastan
            porque TODA publicación SAT los tiene)
-    - COFEPRIS: siempre relevante (alertas sanitarias de medicamentos)
+    - COFEPRIS: NO relevante para ERP. Las alertas sanitarias (medicamentos
+               falsificados, robados, productos milagro, retiros del mercado)
+               son informativas para el farmacéutico pero no accionables
+               desde el sistema ERP.
     """
     if source == "COFEPRIS":
-        return True  # Alertas sanitarias siempre relevantes
+        return False  # Alertas sanitarias no son accionables desde ERP
 
     lower_title = title.lower()
     lower_text = (title + "\n" + (full_text or "")).lower()
