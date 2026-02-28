@@ -83,7 +83,8 @@
                 <th style="width: 90px;">Dominio</th>
                 <th style="width: 140px;">Modulo</th>
                 <th style="width: 80px;">Fuente</th>
-                <th style="width: 110px;">Fecha</th>
+                <th style="width: 100px;">Publicacion</th>
+                <th style="width: 100px;">Entrada en vigor</th>
             </tr>
         </thead>
         <tbody>
@@ -99,6 +100,7 @@
                 <td>{{ module_badge(pub.impacted_module) }}</td>
                 <td>{{ source_badge(pub.source) }}</td>
                 <td><small>{{ pub.publication_date or '-' }}</small></td>
+                <td><small>{{ pub.effective_date or '-' }}</small></td>
             </tr>
             {% endfor %}
         </tbody>

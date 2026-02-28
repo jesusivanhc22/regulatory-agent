@@ -104,8 +104,8 @@ def get_filtered_publications(severity=None, domain=None, module=None,
 
     # Whitelist de columnas para evitar SQL injection
     allowed_sorts = {
-        "analyzed_at", "publication_date", "severity",
-        "primary_domain", "impacted_module", "title"
+        "analyzed_at", "publication_date", "effective_date",
+        "severity", "primary_domain", "impacted_module", "title"
     }
     if sort_by not in allowed_sorts:
         sort_by = "analyzed_at"
@@ -118,9 +118,9 @@ def get_filtered_publications(severity=None, domain=None, module=None,
     # Resultados paginados
     offset = (page - 1) * per_page
     cursor.execute(f"""
-        SELECT id, title, url, publication_date, primary_domain,
-               impacted_module, severity, impact_flag, impact_reason,
-               analyzed_at, COALESCE(source, 'DOF') as source
+        SELECT id, title, url, publication_date, effective_date,
+               primary_domain, impacted_module, severity, impact_flag,
+               impact_reason, analyzed_at, COALESCE(source, 'DOF') as source
         FROM publications
         {where}
         ORDER BY {sort_by} {sort_dir}

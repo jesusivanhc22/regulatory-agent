@@ -34,8 +34,12 @@
                         </td>
                     </tr>
                     <tr>
-                        <th class="text-muted">Fecha</th>
+                        <th class="text-muted">Fecha publicacion</th>
                         <td>{{ pub.publication_date or 'No disponible' }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Entrada en vigor</th>
+                        <td>{{ pub.effective_date or 'No detectada' }}</td>
                     </tr>
                     <tr>
                         <th class="text-muted">Fuente</th>

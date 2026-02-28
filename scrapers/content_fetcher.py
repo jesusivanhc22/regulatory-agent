@@ -7,6 +7,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def fetch_content(url):
 
+    # Si la URL apunta directamente a un PDF (COFEPRIS, SAT),
+    # no hay pagina HTML intermedia.
+    if url.lower().endswith('.pdf'):
+        return None, url
+
     try:
         response = requests.get(url, verify=False, timeout=15)
     except Exception as e:

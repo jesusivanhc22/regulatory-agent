@@ -64,11 +64,12 @@ def init_db():
 # OPERACIONES BATCH (origin/main)
 # ==============================
 
-def save_discovered_batch(publications):
+def save_discovered_batch(publications, source="DOF"):
     """Inserta publicaciones en batch, ignorando duplicados por URL.
 
     Args:
         publications: lista de dicts con keys 'title' y 'url'.
+        source: fuente de las publicaciones ('DOF', 'COFEPRIS', 'SAT').
 
     Returns:
         int: cantidad de publicaciones nuevas insertadas.
@@ -76,7 +77,8 @@ def save_discovered_batch(publications):
     if not publications:
         return 0
 
-    data = [(pub["title"], pub["url"]) for pub in publications]
+    data = [(pub["title"], pub["url"], source, pub.get("publication_date"))
+            for pub in publications]
 
     with _get_connection() as conn:
         cursor = conn.cursor()
@@ -86,15 +88,15 @@ def save_discovered_batch(publications):
         count_before = cursor.fetchone()[0]
 
         cursor.executemany("""
-            INSERT OR IGNORE INTO publications (title, url, status)
-            VALUES (?, ?, 'DISCOVERED')
+            INSERT OR IGNORE INTO publications (title, url, source, publication_date, status)
+            VALUES (?, ?, ?, ?, 'DISCOVERED')
         """, data)
 
         cursor.execute("SELECT COUNT(*) FROM publications")
         count_after = cursor.fetchone()[0]
 
     new_count = count_after - count_before
-    logger.info("Publicaciones insertadas: %d nuevas de %d scrapeadas.", new_count, len(publications))
+    logger.info("[%s] Publicaciones insertadas: %d nuevas de %d scrapeadas.", source, new_count, len(publications))
     return new_count
 
 
@@ -308,12 +310,16 @@ def save_analysis(publication_id: int, analysis_data: dict):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Asegurar que la columna regulatory_compliance_score existe
-    try:
-        cursor.execute("ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0")
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass  # La columna ya existe
+    # Migraciones: asegurar que columnas nuevas existen
+    for col_sql in [
+        "ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0",
+        "ALTER TABLE publications ADD COLUMN effective_date TEXT",
+    ]:
+        try:
+            cursor.execute(col_sql)
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # La columna ya existe
 
     cursor.execute("""
         UPDATE publications SET
@@ -334,6 +340,7 @@ def save_analysis(publication_id: int, analysis_data: dict):
             severity = ?,
             impact_flag = ?,
             impact_reason = ?,
+            effective_date = ?,
             analyzed_at = ?,
             status = 'ANALYZED'
         WHERE id = ?
@@ -355,6 +362,7 @@ def save_analysis(publication_id: int, analysis_data: dict):
         analysis_data["severity"],
         analysis_data["impact_flag"],
         analysis_data["impact_reason"],
+        analysis_data.get("effective_date"),
         analysis_data["analyzed_at"],
         publication_id
     ))

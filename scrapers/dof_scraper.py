@@ -82,6 +82,7 @@ def fetch_dof():
         publications.append({
             "title": title,
             "url": full_url,
+            "publication_date": datetime.now().date().isoformat(),
         })
 
     logger.info("Publicaciones detectadas en portada: %d", len(publications))
@@ -134,7 +135,8 @@ def fetch_dof_by_date(date_obj):
 
         publications.append({
             "title": title,
-            "url": full_url
+            "url": full_url,
+            "publication_date": date_obj.date().isoformat(),
         })
 
     return publications

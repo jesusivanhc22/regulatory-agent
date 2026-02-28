@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS publications (
     title TEXT,
     url TEXT UNIQUE,
     publication_date TEXT,
+    effective_date TEXT,
     status TEXT,
     raw_html TEXT,
     full_text TEXT,

@@ -4,6 +4,7 @@ from analysis.domain_classifier import classify_domain
 from analysis.obligation_detector import calculate_operational_obligation
 from analysis.erp_impact_engine import evaluate_erp_impact
 from analysis.severity_evaluator import evaluate_severity
+from analysis.date_extractor import extract_effective_date
 
 # Pre-filtro: si el texto no contiene al menos 1 de estos términos,
 # la publicación no es relevante para un ERP de farmacias.
@@ -103,29 +104,54 @@ PHARMACY_STRONG = [
 ]
 
 
-def _is_relevant(title: str, full_text: str) -> bool:
+def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
     """
     Verifica si la publicación es relevante para un ERP de farmacias privadas.
 
-    - Filtro negativo se aplica SOLO al título (define la naturaleza de la publicación)
-    - PHARMACY_STRONG se busca en el título para anular el filtro negativo
-    - PHARMACY_RELEVANCE se busca en título + texto completo
+    - DOF: filtro gobierno + keywords de relevancia generales
+    - SAT: sin filtro gobierno, pero requiere keywords específicos de farmacia
+           (los keywords fiscales genéricos como 'impuesto', 'iva' no bastan
+           porque TODA publicación SAT los tiene)
+    - COFEPRIS: siempre relevante (alertas sanitarias de medicamentos)
     """
+    if source == "COFEPRIS":
+        return True  # Alertas sanitarias siempre relevantes
+
     lower_title = title.lower()
     lower_text = (title + "\n" + (full_text or "")).lower()
 
-    # Paso 1: si el TÍTULO tiene un término de gobierno...
-    has_gov_title = any(kw in lower_title for kw in GOVERNMENT_EXCLUDE_TITLE)
+    # Paso 1: filtro negativo por título de gobierno (solo DOF)
+    if source == "DOF":
+        has_gov_title = any(kw in lower_title for kw in GOVERNMENT_EXCLUDE_TITLE)
+        if has_gov_title:
+            has_strong_title = any(kw in lower_title for kw in PHARMACY_STRONG)
+            if not has_strong_title:
+                return False  # Gobierno sin farmacia = excluir
 
-    if has_gov_title:
-        # ...verificar si el TÍTULO también tiene un término fuerte de farmacia
-        has_strong_title = any(kw in lower_title for kw in PHARMACY_STRONG)
-        if not has_strong_title:
-            return False  # Gobierno sin farmacia = excluir
-
-    # Paso 2: debe tener al menos 1 keyword de relevancia en título o texto
-    has_relevance = any(kw in lower_text for kw in PHARMACY_RELEVANCE)
-    return has_relevance
+    # Paso 2: keywords de relevancia
+    if source == "SAT":
+        # SAT: requiere keywords específicos de farmacia, no solo fiscales genéricos.
+        # Términos como "impuesto", "iva", "isr", "factura", "cfdi" aparecen en
+        # TODA publicación SAT, así que no son discriminantes.
+        # Solo es relevante si menciona algo de farmacia o ERP específico.
+        SAT_GENERIC = {
+            "impuesto", "iva", "isr", "ieps", "cfdi", "factura",
+            "miscelánea fiscal", "comprobante fiscal", "contabilidad electrónica",
+            "complemento de pago", "diot", "carta porte", "comprobante de traslado",
+        }
+        strong_match = any(kw in lower_text for kw in PHARMACY_STRONG)
+        if strong_match:
+            return True
+        # Contar solo keywords NO genéricos del SAT
+        specific_count = sum(
+            1 for kw in PHARMACY_RELEVANCE
+            if kw in lower_text and kw not in SAT_GENERIC
+        )
+        return specific_count >= 2
+    else:
+        # DOF: basta con 1 keyword de relevancia
+        has_relevance = any(kw in lower_text for kw in PHARMACY_RELEVANCE)
+        return has_relevance
 
 
 def _empty_result():
@@ -142,16 +168,18 @@ def _empty_result():
         "severity": "BAJA",
         "impact_flag": 0,
         "impact_reason": "No relevante para ERP farmacias",
+        "effective_date": None,
         "analyzed_at": datetime.utcnow().isoformat(),
     }
 
 
-def analyze_publication(title: str, full_text: str):
+def analyze_publication(title: str, full_text: str, source: str = "DOF",
+                        publication_date: str = None):
 
     text = f"{title}\n{full_text or ''}"
 
     # 0. Pre-filtro de relevancia farmacia/ERP
-    if not _is_relevant(title, full_text or ""):
+    if not _is_relevant(title, full_text or "", source=source):
         return _empty_result()
 
     # 1. Clasificación por dominio
@@ -165,6 +193,9 @@ def analyze_publication(title: str, full_text: str):
 
     # 4. Severidad
     severity = evaluate_severity(domain_scores, obligation_score, module_scores)
+
+    # 5. Fecha de entrada en vigor
+    effective_date = extract_effective_date(text, publication_date)
 
     impact_flag = 1 if severity in ["ALTA", "MEDIA"] else 0
 
@@ -197,5 +228,6 @@ def analyze_publication(title: str, full_text: str):
         "impact_flag": impact_flag,
         "impact_reason": impact_reason,
 
+        "effective_date": effective_date,
         "analyzed_at": datetime.utcnow().isoformat()
     }
