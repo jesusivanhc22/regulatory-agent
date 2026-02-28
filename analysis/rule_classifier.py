@@ -98,9 +98,20 @@ PHARMACY_STRONG = [
     "nom-059", "nom-072", "nom-176", "nom-001-ssa",
     "antimicrobiano", "receta médica", "receta electrónica",
     "responsable sanitario", "sistema computarizado",
-    "trazabilidad", "farmacovigilancia", "tecnovigilancia",
+    "farmacovigilancia", "tecnovigilancia",
     "cadena de frío", "feum",
     "venta y suministro de medicamentos",
+]
+
+# Términos que indican que la publicación es de OTRO SECTOR, no farmacia.
+# Si aparecen en el texto y NO hay keywords fuertes de farmacia, descartar.
+OTHER_SECTOR_INDICATORS = [
+    "hidrocarburo", "petrolífero", "petroquímico",
+    "gasolina", "gas licuado", "gas natural",
+    "minería", "minero", "actividad extractiva",
+    "autotransporte federal", "transporte de carga",
+    "actividades agrícolas", "sector ganadero", "sector pesquero",
+    "sector silvícola", "actividades primarias",
 ]
 
 
@@ -128,30 +139,41 @@ def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
             if not has_strong_title:
                 return False  # Gobierno sin farmacia = excluir
 
-    # Paso 2: keywords de relevancia
+    # Keywords fiscales genéricos que aparecen en cualquier publicación fiscal
+    # y NO indican relevancia específica para farmacias.
+    FISCAL_GENERIC = {
+        "impuesto", "iva", "isr", "ieps", "cfdi", "factura",
+        "miscelánea fiscal", "comprobante fiscal", "contabilidad electrónica",
+        "complemento de pago", "diot", "carta porte", "comprobante de traslado",
+        "traslado de mercancías",
+    }
+
+    # Paso 2: si tiene un keyword fuerte de farmacia, siempre es relevante
+    strong_match = any(kw in lower_text for kw in PHARMACY_STRONG)
+    if strong_match:
+        return True
+
+    # Paso 2.5: si el texto menciona otro sector (hidrocarburos, agricultura, etc.)
+    # y NO tiene keywords fuertes de farmacia, descartar.
+    has_other_sector = any(kw in lower_text for kw in OTHER_SECTOR_INDICATORS)
+    if has_other_sector:
+        return False
+
+    # Paso 3: contar keywords específicos (excluir genéricos fiscales)
+    specific_count = sum(
+        1 for kw in PHARMACY_RELEVANCE
+        if kw in lower_text and kw not in FISCAL_GENERIC
+    )
+
     if source == "SAT":
-        # SAT: requiere keywords específicos de farmacia, no solo fiscales genéricos.
-        # Términos como "impuesto", "iva", "isr", "factura", "cfdi" aparecen en
-        # TODA publicación SAT, así que no son discriminantes.
-        # Solo es relevante si menciona algo de farmacia o ERP específico.
-        SAT_GENERIC = {
-            "impuesto", "iva", "isr", "ieps", "cfdi", "factura",
-            "miscelánea fiscal", "comprobante fiscal", "contabilidad electrónica",
-            "complemento de pago", "diot", "carta porte", "comprobante de traslado",
-        }
-        strong_match = any(kw in lower_text for kw in PHARMACY_STRONG)
-        if strong_match:
-            return True
-        # Contar solo keywords NO genéricos del SAT
-        specific_count = sum(
-            1 for kw in PHARMACY_RELEVANCE
-            if kw in lower_text and kw not in SAT_GENERIC
-        )
+        # SAT: exigir 2+ keywords específicos de farmacia
         return specific_count >= 2
     else:
-        # DOF: basta con 1 keyword de relevancia
-        has_relevance = any(kw in lower_text for kw in PHARMACY_RELEVANCE)
-        return has_relevance
+        # DOF: exigir 1+ keyword específico de farmacia
+        if specific_count >= 1:
+            return True
+        # Solo keywords genéricos fiscales sin nada de farmacia = no relevante
+        return False
 
 
 def _empty_result():
