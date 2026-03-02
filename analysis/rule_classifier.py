@@ -69,7 +69,8 @@ GOVERNMENT_EXCLUDE_TITLE = [
     # Transferencias entre gobierno y estados
     "transferencia de recursos federales",
     "convenio específico en materia de transferencia",
-    # Comercio/antidumping
+    # Comercio exterior (documentos masivos multi-sector)
+    "comercio exterior", "reglas generales de comercio",
     "investigación antidumping", "antisubvención",
     "importaciones de pierna", "importaciones de carne",
     # Moneda informativa
@@ -148,7 +149,7 @@ def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
         "impuesto", "iva", "isr", "ieps", "cfdi", "factura",
         "miscelánea fiscal", "comprobante fiscal", "contabilidad electrónica",
         "complemento de pago", "diot", "carta porte", "comprobante de traslado",
-        "traslado de mercancías",
+        "traslado de mercancías", "punto de venta",
     }
 
     # Paso 2: si tiene un keyword fuerte de farmacia, siempre es relevante
