@@ -52,6 +52,16 @@ _NEXT_DAY_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Patrón relativo: "a los XX días naturales/hábiles posteriores a la publicación"
+_RELATIVE_DAYS_RE = re.compile(
+    r'(?:entr(?:ará|a)\s+en\s+vigor|surt(?:irá|e)\s+efectos?|vigente?)\s+'
+    r'(?:a\s+los\s+)?(\d{1,3})\s+d[ií]as\s+(?:naturales\s+)?'
+    r'(?:posteriores|siguientes|después)\s+'
+    r'(?:a\s+(?:la\s+)?|de\s+(?:la\s+)?|al\s+de\s+(?:la\s+)?)?'
+    r'(?:su\s+)?publicaci[oó]n',
+    re.IGNORECASE,
+)
+
 
 def extract_effective_date(text, publication_date=None):
     """Extrae la fecha de entrada en vigor del texto de una publicación regulatoria.
@@ -90,5 +100,17 @@ def extract_effective_date(text, publication_date=None):
             return (pub_dt + timedelta(days=1)).date().isoformat()
         except ValueError:
             pass
+
+    # Patrón relativo: "a los 60 días naturales posteriores a la publicación"
+    if publication_date:
+        match = _RELATIVE_DAYS_RE.search(text)
+        if match:
+            try:
+                from datetime import timedelta
+                days = int(match.group(1))
+                pub_dt = datetime.strptime(publication_date, '%Y-%m-%d')
+                return (pub_dt + timedelta(days=days)).date().isoformat()
+            except ValueError:
+                pass
 
     return None
