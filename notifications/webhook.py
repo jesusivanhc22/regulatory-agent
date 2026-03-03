@@ -77,6 +77,15 @@ def _build_payload(new_publications: list, pipeline_stats: dict = None) -> dict:
     alta_count = sum(1 for p in sorted_pubs if p.get("severity") == "ALTA")
     media_count = sum(1 for p in sorted_pubs if p.get("severity") == "MEDIA")
 
+    # Generar HTML listo para email
+    html_email = _build_html_email(publications_data, alta_count, media_count)
+
+    # Subject line para el email
+    if alta_count > 0:
+        email_subject = f"Alerta Regulatoria: {alta_count} publicaciones ALTA y {media_count} MEDIA detectadas"
+    else:
+        email_subject = f"Monitor Regulatorio: {media_count} nuevas publicaciones MEDIA detectadas"
+
     return {
         "event": "new_impact_publications",
         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -87,7 +96,229 @@ def _build_payload(new_publications: list, pipeline_stats: dict = None) -> dict:
         },
         "publications": publications_data,
         "pipeline_stats": pipeline_stats or {},
+        "email_subject": email_subject,
+        "html_email": html_email,
     }
+
+
+def _build_html_email(publications: list, alta_count: int, media_count: int) -> str:
+    """Genera el HTML del email listo para enviar desde Make/Zapier."""
+
+    MODULE_LABELS = {
+        "INVOICING": "Facturacion",
+        "TAX_REPORTING": "Reportes Fiscales",
+        "INVENTORY": "Inventario",
+        "ACCOUNTING": "Contabilidad",
+        "POS": "Punto de Venta",
+        "REGULATORY_COMPLIANCE": "Cumplimiento Regulatorio",
+        "NONE": "-",
+    }
+    DOMAIN_LABELS = {
+        "HEALTH": "Salud",
+        "FISCAL": "Fiscal",
+        "RETAIL": "Retail",
+        "BORDER": "Frontera",
+        "CURRENCY": "Moneda",
+    }
+    SOURCE_LABELS = {
+        "DOF": "Diario Oficial de la Federacion",
+        "SAT": "Servicio de Administracion Tributaria",
+        "COFEPRIS": "COFEPRIS",
+    }
+
+    # Separar ALTA y MEDIA
+    alta_pubs = [p for p in publications if p.get("severity") == "ALTA"]
+    media_pubs = [p for p in publications if p.get("severity") == "MEDIA"]
+
+    def _pub_row(pub):
+        title = pub.get("title", "")
+        url = pub.get("url", "")
+        source = pub.get("source", "DOF")
+        module = MODULE_LABELS.get(pub.get("impacted_module", ""), pub.get("impacted_module", ""))
+        domain = DOMAIN_LABELS.get(pub.get("primary_domain", ""), pub.get("primary_domain", ""))
+        pub_date = pub.get("publication_date") or "-"
+        eff_date = pub.get("effective_date")
+        severity = pub.get("severity", "")
+
+        sev_color = "#dc3545" if severity == "ALTA" else "#f0ad4e"
+        sev_label = severity
+
+        eff_html = ""
+        if eff_date:
+            eff_html = f"""
+            <tr>
+                <td style="padding:2px 0;color:#555;font-size:13px;">Entrada en vigor:</td>
+                <td style="padding:2px 0;font-size:13px;font-weight:bold;color:#dc3545;">{eff_date}</td>
+            </tr>"""
+
+        return f"""
+        <tr>
+            <td style="padding:16px 20px;border-bottom:1px solid #eee;">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                        <td>
+                            <span style="display:inline-block;background:{sev_color};color:#fff;font-size:11px;
+                                font-weight:bold;padding:3px 10px;border-radius:3px;letter-spacing:0.5px;">
+                                {sev_label}
+                            </span>
+                            <span style="display:inline-block;background:#e9ecef;color:#495057;font-size:11px;
+                                padding:3px 8px;border-radius:3px;margin-left:6px;">
+                                {domain}
+                            </span>
+                            <span style="display:inline-block;background:#e9ecef;color:#495057;font-size:11px;
+                                padding:3px 8px;border-radius:3px;margin-left:4px;">
+                                {module}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top:8px;">
+                            <a href="{url}" style="color:#1a73e8;text-decoration:none;font-size:15px;
+                                font-weight:600;line-height:1.4;">
+                                {title}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top:6px;">
+                            <table cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding:2px 0;color:#555;font-size:13px;">Fuente:</td>
+                                    <td style="padding:2px 0 2px 8px;font-size:13px;">{SOURCE_LABELS.get(source, source)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:2px 0;color:#555;font-size:13px;">Publicado:</td>
+                                    <td style="padding:2px 0 2px 8px;font-size:13px;">{pub_date}</td>
+                                </tr>{eff_html}
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>"""
+
+    # Construir filas
+    alta_rows = "".join(_pub_row(p) for p in alta_pubs)
+    media_rows = "".join(_pub_row(p) for p in media_pubs)
+
+    # Sección ALTA
+    alta_section = ""
+    if alta_pubs:
+        alta_section = f"""
+        <tr>
+            <td style="padding:20px 20px 8px 20px;">
+                <h2 style="margin:0;font-size:16px;color:#dc3545;border-bottom:2px solid #dc3545;
+                    padding-bottom:6px;">
+                    Severidad ALTA — Requiere atencion inmediata ({alta_count})
+                </h2>
+            </td>
+        </tr>
+        {alta_rows}"""
+
+    # Sección MEDIA
+    media_section = ""
+    if media_pubs:
+        media_section = f"""
+        <tr>
+            <td style="padding:20px 20px 8px 20px;">
+                <h2 style="margin:0;font-size:16px;color:#856404;border-bottom:2px solid #f0ad4e;
+                    padding-bottom:6px;">
+                    Severidad MEDIA — Monitorear ({media_count})
+                </h2>
+            </td>
+        </tr>
+        {media_rows}"""
+
+    today = datetime.utcnow().strftime("%d/%m/%Y")
+
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+<table cellpadding="0" cellspacing="0" border="0" width="100%"
+    style="background:#f4f4f7;padding:20px 0;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0" width="640"
+    style="background:#ffffff;border-radius:8px;overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+    <!-- Header -->
+    <tr>
+        <td style="background:#1a1a2e;padding:24px 20px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;
+                letter-spacing:0.5px;">
+                Monitor Regulatorio ERP Farmacias
+            </h1>
+            <p style="margin:6px 0 0;color:#a0a0b0;font-size:13px;">
+                Reporte del {today}
+            </p>
+        </td>
+    </tr>
+
+    <!-- Resumen -->
+    <tr>
+        <td style="padding:20px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td align="center" width="33%" style="padding:10px;">
+                        <div style="background:#f8f9fa;border-radius:8px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:bold;color:#1a1a2e;">
+                                {alta_count + media_count}
+                            </div>
+                            <div style="font-size:12px;color:#6c757d;margin-top:4px;">
+                                NUEVAS
+                            </div>
+                        </div>
+                    </td>
+                    <td align="center" width="33%" style="padding:10px;">
+                        <div style="background:#fdf0f0;border-radius:8px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:bold;color:#dc3545;">
+                                {alta_count}
+                            </div>
+                            <div style="font-size:12px;color:#dc3545;margin-top:4px;">
+                                ALTA
+                            </div>
+                        </div>
+                    </td>
+                    <td align="center" width="33%" style="padding:10px;">
+                        <div style="background:#fff8e1;border-radius:8px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:bold;color:#f0ad4e;">
+                                {media_count}
+                            </div>
+                            <div style="font-size:12px;color:#856404;margin-top:4px;">
+                                MEDIA
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- Publicaciones ALTA -->
+    {alta_section}
+
+    <!-- Publicaciones MEDIA -->
+    {media_section}
+
+    <!-- Footer -->
+    <tr>
+        <td style="padding:24px 20px;background:#f8f9fa;text-align:center;
+            border-top:1px solid #eee;">
+            <p style="margin:0;font-size:12px;color:#999;">
+                Este correo fue generado automaticamente por el Monitor Regulatorio ERP Farmacias.
+                <br>Para mas detalles, consulta el
+                <a href="https://web-production-fdec2.up.railway.app/publicaciones?impact=1"
+                    style="color:#1a73e8;">dashboard completo</a>.
+            </p>
+        </td>
+    </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
 
 
 def send_webhook(new_publications: list, pipeline_stats: dict = None) -> bool:
