@@ -8,9 +8,13 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# En deploy (Railway/Render) usa la DB ligera; localmente usa la completa
+# En deploy (Railway/Render) usa la DB ligera; localmente usa la completa.
+# Si regulatory.db no existe (deploy), cae a regulatory_deploy.db automáticamente.
 _db_name = os.environ.get("DB_NAME", "regulatory.db")
-DB_PATH = BASE_DIR / "data" / _db_name
+_db_path = BASE_DIR / "data" / _db_name
+if not _db_path.exists() and _db_name == "regulatory.db":
+    _db_path = BASE_DIR / "data" / "regulatory_deploy.db"
+DB_PATH = _db_path
 
 
 # ==============================
@@ -372,6 +376,32 @@ def save_analysis(publication_id: int, analysis_data: dict):
 
     conn.commit()
     conn.close()
+
+
+def get_new_impact_publications(since_timestamp: str):
+    """
+    Obtiene publicaciones con impacto que fueron analizadas DESPUÉS
+    de un timestamp dado. Sirve para detectar nuevas publicaciones
+    en cada corrida del pipeline.
+
+    Args:
+        since_timestamp: ISO timestamp (e.g. '2026-03-02 10:00:00')
+
+    Returns:
+        list[Row]: publicaciones nuevas con impacto.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT * FROM publications
+        WHERE impact_flag = 1 AND analyzed_at > ?
+        ORDER BY severity DESC, analyzed_at DESC
+    """, (since_timestamp,))
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 
 def get_impact_publications():

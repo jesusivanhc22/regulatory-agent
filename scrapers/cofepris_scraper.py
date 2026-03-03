@@ -12,7 +12,10 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from curl_cffi import requests as curl_requests
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None  # No disponible en deploy (solo necesario para scraping)
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)

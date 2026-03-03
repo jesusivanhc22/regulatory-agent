@@ -188,4 +188,25 @@ def create_app():
         stats["last_error"] = _pipeline_state["last_error"]
         return jsonify(stats)
 
+    # =====================
+    # WEBHOOK TEST
+    # =====================
+    @app.route("/api/webhook/test", methods=["POST"])
+    def test_webhook():
+        """Envía un webhook de prueba con las publicaciones actuales con impacto."""
+        from database.db import get_impact_publications
+        from notifications.webhook import send_webhook
+
+        impact_pubs = get_impact_publications()
+        if not impact_pubs:
+            return jsonify({"error": "No hay publicaciones con impacto"}), 404
+
+        impact_dicts = [dict(row) for row in impact_pubs]
+        success = send_webhook(impact_dicts, {"test": True})
+
+        if success:
+            return jsonify({"status": "ok", "sent": len(impact_dicts)})
+        else:
+            return jsonify({"error": "Webhook no configurado o falló"}), 500
+
     return app

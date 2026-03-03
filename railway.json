@@ -4,8 +4,9 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "gunicorn \"web.app:create_app()\" --bind 0.0.0.0:${PORT:-5000}",
+    "startCommand": "gunicorn \"web.app:create_app()\" --bind 0.0.0.0:${PORT:-5000} --timeout 120",
     "healthcheckPath": "/",
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }

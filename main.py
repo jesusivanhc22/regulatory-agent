@@ -1,5 +1,6 @@
 import logging
 import sys
+from datetime import datetime, timezone
 
 from analysis.rule_classifier import analyze_publication
 from database.db import (
@@ -8,7 +9,8 @@ from database.db import (
     save_content,
     save_analysis,
     save_discovered_batch,
-    get_impact_publications
+    get_impact_publications,
+    get_new_impact_publications,
 )
 from scrapers.dof_scraper import fetch_dof
 from scrapers.cofepris_scraper import fetch_cofepris
@@ -17,6 +19,7 @@ from scrapers.content_fetcher import fetch_content
 from scrapers.pdf_downloader import download_pdf
 from scrapers.text_extractor import extract_from_html, extract_from_pdf
 from reporting.executive_report_generator import generate_executive_summary
+from notifications.webhook import send_webhook
 
 # -- Configuración de logging ------------------------------------------------
 logging.basicConfig(
@@ -196,10 +199,39 @@ def run_scraper():
 
 
 def run_full_pipeline():
-    """Ejecuta el pipeline completo: scrape -> contenido -> analisis."""
-    run_scraper()
+    """Ejecuta el pipeline completo: scrape -> contenido -> analisis -> notificar.
+
+    Solo dispara webhook si hay publicaciones NUEVAS con impacto
+    (analizadas en esta corrida del pipeline).
+    """
+    # Marcar timestamp antes de iniciar para detectar nuevas al final
+    pipeline_start = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1. Scraping
+    total_new_discovered = run_scraper()
+
+    # 2. Descarga de contenido
     run_content_pipeline()
+
+    # 3. Análisis
     run_analysis_pipeline()
+
+    # 4. Notificar solo si hay nuevas publicaciones con impacto
+    new_impact = get_new_impact_publications(pipeline_start)
+
+    if new_impact:
+        new_impact_dicts = [dict(row) for row in new_impact]
+        pipeline_stats = {
+            "new_discovered": total_new_discovered,
+            "pipeline_start": pipeline_start,
+        }
+        send_webhook(new_impact_dicts, pipeline_stats)
+        logger.info(
+            "NUEVAS publicaciones con impacto: %d (webhook disparado)",
+            len(new_impact),
+        )
+    else:
+        logger.info("Sin nuevas publicaciones con impacto. Sin notificaciones.")
 
 
 if __name__ == "__main__":
