@@ -5,3 +5,6 @@ __pycache__/
 reports/
 pipeline.log
 *.log
+.env
+nul
+.claude/

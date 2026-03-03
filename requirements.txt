@@ -5,3 +5,4 @@ markdown
 pdfplumber
 flask
 curl_cffi
+gunicorn

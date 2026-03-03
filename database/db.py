@@ -7,7 +7,10 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "data" / "regulatory.db"
+
+# En deploy (Railway/Render) usa la DB ligera; localmente usa la completa
+_db_name = os.environ.get("DB_NAME", "regulatory.db")
+DB_PATH = BASE_DIR / "data" / _db_name
 
 
 # ==============================
