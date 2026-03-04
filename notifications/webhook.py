@@ -104,6 +104,11 @@ def _build_payload(new_publications: list, pipeline_stats: dict = None) -> dict:
 def _build_html_email(publications: list, alta_count: int, media_count: int) -> str:
     """Genera el HTML del email listo para enviar desde Make/Zapier."""
 
+    dashboard_url = os.environ.get(
+        "DASHBOARD_URL",
+        "https://web-production-fdec2.up.railway.app",
+    )
+
     MODULE_LABELS = {
         "INVOICING": "Facturacion",
         "TAX_REPORTING": "Reportes Fiscales",
@@ -310,7 +315,7 @@ def _build_html_email(publications: list, alta_count: int, media_count: int) -> 
             <p style="margin:0;font-size:12px;color:#999;">
                 Este correo fue generado automaticamente por el Monitor Regulatorio ERP Farmacias.
                 <br>Para mas detalles, consulta el
-                <a href="https://web-production-fdec2.up.railway.app/publicaciones?impact=1"
+                <a href="{dashboard_url}/publicaciones?impact=1"
                     style="color:#1a73e8;">dashboard completo</a>.
             </p>
         </td>

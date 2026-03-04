@@ -14,8 +14,9 @@ from web.app import create_app
 
 if __name__ == "__main__":
     app = create_app()
+    debug = os.environ.get("FLASK_ENV", "production") == "development"
     app.run(
-        host="0.0.0.0",    # Accesible en LAN
-        port=5000,
-        debug=True,         # Auto-reload durante desarrollo
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=debug,
     )
