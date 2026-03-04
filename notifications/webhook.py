@@ -124,6 +124,8 @@ def _build_html_email(publications: list, alta_count: int, media_count: int) -> 
         "DOF": "Diario Oficial de la Federacion",
         "SAT": "Servicio de Administracion Tributaria",
         "COFEPRIS": "COFEPRIS",
+        "SE_SALUD": "Secretaria de Salud",
+        "COFEPRIS_NORMAS": "COFEPRIS Marco Normativo",
     }
 
     # Separar ALTA y MEDIA

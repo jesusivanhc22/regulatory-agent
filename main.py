@@ -15,6 +15,8 @@ from database.db import (
 from scrapers.dof_scraper import fetch_dof
 from scrapers.cofepris_scraper import fetch_cofepris
 from scrapers.sat_scraper import fetch_sat
+from scrapers.sesalud_scraper import fetch_sesalud
+from scrapers.cofepris_normas_scraper import fetch_cofepris_normas
 from scrapers.content_fetcher import fetch_content
 from scrapers.pdf_downloader import download_pdf
 from scrapers.text_extractor import extract_from_html, extract_from_pdf
@@ -193,7 +195,25 @@ def run_scraper():
     new_sat = save_discovered_batch(sat_pubs, source="SAT")
     logger.info("[SAT] %d nuevas de %d scrapeadas", new_sat, len(sat_pubs))
 
-    total_new = new_dof + new_cofepris + new_sat
+    # Secretaría de Salud (Documentos regulatorios)
+    try:
+        sesalud_pubs = fetch_sesalud(days_back=180, max_pages=2)
+        new_sesalud = save_discovered_batch(sesalud_pubs, source="SE_SALUD")
+        logger.info("[SE_SALUD] %d nuevas de %d scrapeadas", new_sesalud, len(sesalud_pubs))
+    except Exception:
+        logger.exception("Error en scraper Secretaría de Salud")
+        new_sesalud = 0
+
+    # COFEPRIS Marco Normativo (NOMs, lineamientos, reglamentos)
+    try:
+        normas_pubs = fetch_cofepris_normas()
+        new_normas = save_discovered_batch(normas_pubs, source="COFEPRIS_NORMAS")
+        logger.info("[COFEPRIS_NORMAS] %d nuevas de %d scrapeadas", new_normas, len(normas_pubs))
+    except Exception:
+        logger.exception("Error en scraper COFEPRIS Normas")
+        new_normas = 0
+
+    total_new = new_dof + new_cofepris + new_sat + new_sesalud + new_normas
     logger.info("SCRAPING COMPLETADO: %d nuevas publicaciones en total", total_new)
     return total_new
 

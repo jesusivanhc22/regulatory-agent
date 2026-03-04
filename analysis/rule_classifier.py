@@ -128,6 +128,11 @@ def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
                falsificados, robados, productos milagro, retiros del mercado)
                son informativas para el farmacéutico pero no accionables
                desde el sistema ERP.
+    - SE_SALUD: Documentos de Secretaría de Salud. Relevante si tiene keywords
+                de farmacia (similar a DOF, mismos filtros).
+    - COFEPRIS_NORMAS: Marco normativo de COFEPRIS (NOMs, lineamientos,
+                reglamentos). Estas SÍ son relevantes — son las reglas que
+                aplican directamente a farmacias. Se tratan como DOF.
     """
     if source == "COFEPRIS":
         return False  # Alertas sanitarias no son accionables desde ERP
@@ -135,8 +140,8 @@ def _is_relevant(title: str, full_text: str, source: str = "DOF") -> bool:
     lower_title = title.lower()
     lower_text = (title + "\n" + (full_text or "")).lower()
 
-    # Paso 1: filtro negativo por título de gobierno (solo DOF)
-    if source == "DOF":
+    # Paso 1: filtro negativo por título de gobierno (DOF, SE_SALUD, COFEPRIS_NORMAS)
+    if source in ("DOF", "SE_SALUD", "COFEPRIS_NORMAS"):
         has_gov_title = any(kw in lower_title for kw in GOVERNMENT_EXCLUDE_TITLE)
         if has_gov_title:
             has_strong_title = any(kw in lower_title for kw in PHARMACY_STRONG)
