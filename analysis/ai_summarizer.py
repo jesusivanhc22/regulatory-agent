@@ -4,6 +4,8 @@ Modulo de analisis con IA usando Google Gemini 2.5 Flash.
 Genera resumen ejecutivo, acciones concretas y fechas limite
 para publicaciones regulatorias con impacto en ERP de farmacias.
 
+Usa el paquete google-genai (nuevo SDK oficial).
+
 Tier gratuito de Gemini:
 - 15 requests/minuto
 - 500 requests/dia
@@ -21,9 +23,8 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# Lazy import: solo se carga si se usa
-_genai = None
-_model = None
+# Lazy init
+_client = None
 
 GEMINI_MODEL = "gemini-2.5-flash"
 MAX_TEXT_LENGTH = 8000  # Truncar texto para mantenerse en limites gratuitos
@@ -54,9 +55,9 @@ RESPONDE UNICAMENTE con un JSON valido (sin markdown, sin backticks, sin texto a
 
 def _init_gemini():
     """Inicializa el cliente de Gemini de forma lazy."""
-    global _genai, _model
+    global _client
 
-    if _model is not None:
+    if _client is not None:
         return True
 
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -65,17 +66,12 @@ def _init_gemini():
         return False
 
     try:
-        import google.generativeai as genai
-        _genai = genai
-        _genai.configure(api_key=api_key)
-        _model = _genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            system_instruction=SYSTEM_PROMPT,
-        )
-        logger.info("Gemini %s inicializado correctamente.", GEMINI_MODEL)
+        from google import genai
+        _client = genai.Client(api_key=api_key)
+        logger.info("Gemini %s inicializado correctamente (google-genai).", GEMINI_MODEL)
         return True
     except ImportError:
-        logger.warning("google-generativeai no instalado. pip install google-generativeai")
+        logger.warning("google-genai no instalado. pip install google-genai")
         return False
     except Exception as e:
         logger.error("Error inicializando Gemini: %s", e)
@@ -151,12 +147,12 @@ def _parse_response(response_text: str) -> dict:
         prioridad = "INFORMATIVO"
 
     # Normalizar fecha_limite
-    if fecha_limite and fecha_limite.lower() in ("null", "none", "n/a", "no aplica", ""):
+    if fecha_limite and str(fecha_limite).lower() in ("null", "none", "n/a", "no aplica", ""):
         fecha_limite = None
 
     # Validar formato de fecha si existe
     if fecha_limite:
-        if not re.match(r'^\d{4}-\d{2}-\d{2}$', fecha_limite):
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', str(fecha_limite)):
             logger.warning("Fecha limite con formato invalido: %s", fecha_limite)
             fecha_limite = None
 
@@ -206,12 +202,16 @@ def generate_ai_summary(title: str, full_text: str, source: str = "DOF",
     )
 
     try:
-        response = _model.generate_content(
-            user_prompt,
-            generation_config={
-                "temperature": 0.3,  # Baja para respuestas consistentes
-                "max_output_tokens": 1024,
-            },
+        from google.genai import types
+
+        response = _client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.3,
+                max_output_tokens=8192,  # Alto para acomodar thinking tokens de Gemini 2.5
+            ),
         )
 
         if not response.text:
