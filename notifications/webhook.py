@@ -61,7 +61,7 @@ def _build_payload(new_publications: list, pipeline_stats: dict = None) -> dict:
 
     publications_data = []
     for pub in sorted_pubs:
-        publications_data.append({
+        pub_data = {
             "id": pub.get("id"),
             "title": pub.get("title", ""),
             "url": pub.get("url", ""),
@@ -72,7 +72,14 @@ def _build_payload(new_publications: list, pipeline_stats: dict = None) -> dict:
             "impact_reason": pub.get("impact_reason", ""),
             "publication_date": pub.get("publication_date"),
             "effective_date": pub.get("effective_date"),
-        })
+        }
+        # Campos de analisis IA (si existen)
+        if pub.get("ai_summary"):
+            pub_data["ai_summary"] = pub.get("ai_summary")
+            pub_data["ai_actions"] = pub.get("ai_actions")
+            pub_data["ai_deadline"] = pub.get("ai_deadline")
+            pub_data["ai_priority"] = pub.get("ai_priority")
+        publications_data.append(pub_data)
 
     alta_count = sum(1 for p in sorted_pubs if p.get("severity") == "ALTA")
     media_count = sum(1 for p in sorted_pubs if p.get("severity") == "MEDIA")
@@ -150,6 +157,12 @@ def _build_html_email(publications: list, alta_count: int, media_count: int) -> 
         sev_color = "#dc3545" if severity == "ALTA" else "#f0ad4e"
         sev_label = severity
 
+        # Campos IA
+        ai_summary = pub.get("ai_summary", "")
+        ai_actions_raw = pub.get("ai_actions", "")
+        ai_deadline = pub.get("ai_deadline", "")
+        ai_priority = pub.get("ai_priority", "")
+
         eff_html = ""
         if eff_date:
             eff_html = f"""
@@ -157,6 +170,66 @@ def _build_html_email(publications: list, alta_count: int, media_count: int) -> 
                 <td style="padding:2px 0;color:#555;font-size:13px;">Entrada en vigor:</td>
                 <td style="padding:2px 0;font-size:13px;font-weight:bold;color:#dc3545;">{eff_date}</td>
             </tr>"""
+
+        # Seccion de analisis IA
+        ai_html = ""
+        if ai_summary:
+            # Badge de prioridad IA
+            priority_colors = {
+                "URGENTE": "#dc3545",
+                "PLANIFICAR": "#f0ad4e",
+                "INFORMATIVO": "#6c757d",
+            }
+            pri_color = priority_colors.get(ai_priority, "#6c757d")
+            pri_badge = f"""<span style="display:inline-block;background:{pri_color};color:#fff;
+                font-size:10px;font-weight:bold;padding:2px 8px;border-radius:3px;
+                margin-bottom:6px;">{ai_priority}</span>""" if ai_priority else ""
+
+            # Resumen
+            ai_html += f"""
+                    <tr>
+                        <td style="padding-top:10px;">
+                            {pri_badge}
+                            <p style="margin:4px 0 0;font-size:13px;color:#333;line-height:1.5;
+                                background:#f0f7ff;padding:8px 12px;border-radius:6px;
+                                border-left:3px solid #1a73e8;">
+                                {ai_summary}
+                            </p>
+                        </td>
+                    </tr>"""
+
+            # Acciones
+            try:
+                import json as _json
+                actions = _json.loads(ai_actions_raw) if ai_actions_raw else []
+            except (ValueError, TypeError):
+                actions = []
+
+            if actions:
+                actions_items = "".join(
+                    f'<li style="margin-bottom:3px;font-size:13px;color:#333;">{a}</li>'
+                    for a in actions
+                )
+                ai_html += f"""
+                    <tr>
+                        <td style="padding-top:6px;">
+                            <p style="margin:0 0 2px;font-size:12px;color:#555;font-weight:bold;">
+                                Acciones recomendadas:
+                            </p>
+                            <ul style="margin:0;padding-left:20px;">{actions_items}</ul>
+                        </td>
+                    </tr>"""
+
+            # Fecha limite IA
+            if ai_deadline:
+                ai_html += f"""
+                    <tr>
+                        <td style="padding-top:4px;">
+                            <span style="font-size:12px;color:#dc3545;font-weight:bold;">
+                                Fecha limite: {ai_deadline}
+                            </span>
+                        </td>
+                    </tr>"""
 
         return f"""
         <tr>
@@ -199,7 +272,7 @@ def _build_html_email(publications: list, alta_count: int, media_count: int) -> 
                                 </tr>{eff_html}
                             </table>
                         </td>
-                    </tr>
+                    </tr>{ai_html}
                 </table>
             </td>
         </tr>"""

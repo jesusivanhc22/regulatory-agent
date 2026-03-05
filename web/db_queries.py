@@ -120,7 +120,8 @@ def get_filtered_publications(severity=None, domain=None, module=None,
     cursor.execute(f"""
         SELECT id, title, url, publication_date, effective_date,
                primary_domain, impacted_module, severity, impact_flag,
-               impact_reason, analyzed_at, COALESCE(source, 'DOF') as source
+               impact_reason, analyzed_at, COALESCE(source, 'DOF') as source,
+               ai_summary, ai_actions, ai_deadline, ai_priority
         FROM publications
         {where}
         ORDER BY {sort_by} {sort_dir}

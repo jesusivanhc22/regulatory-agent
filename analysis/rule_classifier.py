@@ -5,6 +5,7 @@ from analysis.obligation_detector import calculate_operational_obligation
 from analysis.erp_impact_engine import evaluate_erp_impact
 from analysis.severity_evaluator import evaluate_severity
 from analysis.date_extractor import extract_effective_date
+from analysis.ai_summarizer import generate_ai_summary
 
 # Pre-filtro: si el texto no contiene al menos 1 de estos términos,
 # la publicación no es relevante para un ERP de farmacias.
@@ -236,6 +237,30 @@ def analyze_publication(title: str, full_text: str, source: str = "DOF",
         f"Obligación: {obligation_score}"
     )
 
+    # 6. Analisis con IA (solo para publicaciones con impacto)
+    ai_summary = None
+    ai_actions = None
+    ai_deadline = None
+    ai_priority = None
+
+    if impact_flag == 1:
+        ai_result = generate_ai_summary(
+            title=title,
+            full_text=full_text or "",
+            source=source,
+            domain=primary_domain,
+            module=impacted_module,
+            severity=severity,
+            effective_date=effective_date,
+        )
+        if ai_result:
+            ai_summary = ai_result["ai_summary"]
+            ai_actions = ai_result["ai_actions"]
+            ai_deadline = ai_result["ai_deadline"]
+            ai_priority = ai_result["ai_priority"]
+            # Reemplazar impact_reason generico con resumen IA
+            impact_reason = ai_summary
+
     return {
         "primary_domain": primary_domain,
 
@@ -260,5 +285,11 @@ def analyze_publication(title: str, full_text: str, source: str = "DOF",
         "impact_reason": impact_reason,
 
         "effective_date": effective_date,
+
+        "ai_summary": ai_summary,
+        "ai_actions": ai_actions,
+        "ai_deadline": ai_deadline,
+        "ai_priority": ai_priority,
+
         "analyzed_at": datetime.utcnow().isoformat()
     }

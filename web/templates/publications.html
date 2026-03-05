@@ -80,6 +80,7 @@
             <tr>
                 <th style="width: 90px;">Severidad</th>
                 <th>Titulo</th>
+                <th style="width: 200px;">Resumen IA</th>
                 <th style="width: 90px;">Dominio</th>
                 <th style="width: 140px;">Modulo</th>
                 <th style="width: 80px;">Fuente</th>
@@ -95,6 +96,19 @@
                     <a href="{{ url_for('publication_detail', pub_id=pub.id) }}" class="text-decoration-none">
                         {{ pub.title[:120] }}{% if pub.title|length > 120 %}...{% endif %}
                     </a>
+                </td>
+                <td>
+                    {% if pub.ai_summary %}
+                    <small class="text-muted">{{ pub.ai_summary[:80] }}{% if pub.ai_summary|length > 80 %}...{% endif %}</small>
+                    {% if pub.ai_priority %}
+                    <br>
+                    <span class="badge {% if pub.ai_priority == 'URGENTE' %}bg-danger{% elif pub.ai_priority == 'PLANIFICAR' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size:10px;">
+                        {{ pub.ai_priority }}
+                    </span>
+                    {% endif %}
+                    {% else %}
+                    <small class="text-muted">-</small>
+                    {% endif %}
                 </td>
                 <td>{{ domain_badge(pub.primary_domain) }}</td>
                 <td>{{ module_badge(pub.impacted_module) }}</td>

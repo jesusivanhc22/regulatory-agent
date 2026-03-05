@@ -110,6 +110,53 @@
     </div>
 </div>
 
+<!-- Analisis IA -->
+{% if pub.ai_summary %}
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm border-start border-primary border-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-robot"></i> Analisis IA
+                    {% if pub.ai_priority %}
+                    <span class="badge ms-2 {% if pub.ai_priority == 'URGENTE' %}bg-danger{% elif pub.ai_priority == 'PLANIFICAR' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                        {{ pub.ai_priority }}
+                    </span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Resumen -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-1"><i class="bi bi-chat-text"></i> Resumen Ejecutivo</h6>
+                    <p class="mb-0" style="line-height:1.6;">{{ pub.ai_summary }}</p>
+                </div>
+
+                <!-- Acciones Recomendadas -->
+                {% if pub.ai_actions %}
+                <div class="mb-3">
+                    <h6 class="text-muted mb-1"><i class="bi bi-check2-square"></i> Acciones Recomendadas</h6>
+                    <ul class="mb-0">
+                        {% for action in pub.ai_actions | from_json %}
+                        <li>{{ action }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Fecha Limite IA -->
+                {% if pub.ai_deadline %}
+                <div>
+                    <h6 class="text-muted mb-1"><i class="bi bi-calendar-event"></i> Fecha Limite</h6>
+                    <span class="badge bg-danger fs-6">{{ pub.ai_deadline }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Scores Detallados -->
 <div class="row g-3 mt-1">
     <div class="col-md-6">

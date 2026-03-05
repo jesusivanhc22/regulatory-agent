@@ -236,6 +236,10 @@ def reset_for_reprocessing():
             severity = NULL,
             impact_flag = NULL,
             impact_reason = NULL,
+            ai_summary = NULL,
+            ai_actions = NULL,
+            ai_deadline = NULL,
+            ai_priority = NULL,
             analyzed_at = NULL
         WHERE status = 'ANALYZED'
           AND (full_text IS NULL OR full_text = '')
@@ -276,6 +280,10 @@ def reset_all_analyzed():
             severity = NULL,
             impact_flag = NULL,
             impact_reason = NULL,
+            ai_summary = NULL,
+            ai_actions = NULL,
+            ai_deadline = NULL,
+            ai_priority = NULL,
             analyzed_at = NULL
         WHERE status = 'ANALYZED'
           AND full_text IS NOT NULL
@@ -321,6 +329,10 @@ def save_analysis(publication_id: int, analysis_data: dict):
     for col_sql in [
         "ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0",
         "ALTER TABLE publications ADD COLUMN effective_date TEXT",
+        "ALTER TABLE publications ADD COLUMN ai_summary TEXT",
+        "ALTER TABLE publications ADD COLUMN ai_actions TEXT",
+        "ALTER TABLE publications ADD COLUMN ai_deadline TEXT",
+        "ALTER TABLE publications ADD COLUMN ai_priority TEXT",
     ]:
         try:
             cursor.execute(col_sql)
@@ -348,6 +360,10 @@ def save_analysis(publication_id: int, analysis_data: dict):
             impact_flag = ?,
             impact_reason = ?,
             effective_date = ?,
+            ai_summary = ?,
+            ai_actions = ?,
+            ai_deadline = ?,
+            ai_priority = ?,
             analyzed_at = ?,
             status = 'ANALYZED'
         WHERE id = ?
@@ -370,6 +386,10 @@ def save_analysis(publication_id: int, analysis_data: dict):
         analysis_data["impact_flag"],
         analysis_data["impact_reason"],
         analysis_data.get("effective_date"),
+        analysis_data.get("ai_summary"),
+        analysis_data.get("ai_actions"),
+        analysis_data.get("ai_deadline"),
+        analysis_data.get("ai_priority"),
         analysis_data["analyzed_at"],
         publication_id
     ))

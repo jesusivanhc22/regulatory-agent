@@ -9,6 +9,7 @@ Fase 10: Hardening para produccion.
 - Error handlers (404, 500)
 """
 
+import json
 import os
 import sys
 import threading
@@ -99,6 +100,17 @@ def create_app():
         "FLASK_SECRET_KEY",
         secrets.token_hex(32),
     )
+
+    # Filtro Jinja para parsear JSON (usado en templates para ai_actions)
+    @app.template_filter("from_json")
+    def from_json_filter(value):
+        """Parsea string JSON a objeto Python para uso en templates."""
+        if not value:
+            return []
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
 
     # =====================
     # SECURITY HEADERS
