@@ -229,12 +229,21 @@ def create_initial_admin():
 
 
 def ensure_users_table():
-    """Asegura que la tabla users existe (para SQLite)."""
+    """Asegura que la tabla users existe (SQLite y PostgreSQL)."""
     conn = get_connection()
     cursor = conn.cursor()
     if is_postgres():
-        # En PostgreSQL el schema se crea con schema_pg.sql
-        pass
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                name TEXT,
+                active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
     else:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
