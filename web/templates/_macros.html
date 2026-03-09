@@ -1,39 +1,39 @@
 {% macro severity_badge(severity) %}
     {% if severity == "ALTA" %}
-        <span class="badge bg-danger">ALTA</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">ALTA</span>
     {% elif severity == "MEDIA" %}
-        <span class="badge bg-warning text-dark">MEDIA</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">MEDIA</span>
     {% elif severity == "BAJA" %}
-        <span class="badge bg-secondary">BAJA</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">BAJA</span>
     {% else %}
-        <span class="badge bg-light text-dark">{{ severity or '-' }}</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-50 text-gray-500">{{ severity or '-' }}</span>
     {% endif %}
 {% endmacro %}
 
 {% macro domain_badge(domain) %}
     {% if domain == "HEALTH" %}
-        <span class="badge bg-success">Salud</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">Salud</span>
     {% elif domain == "FISCAL" %}
-        <span class="badge bg-primary">Fiscal</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Fiscal</span>
     {% elif domain == "RETAIL" %}
-        <span class="badge bg-info text-dark">Retail</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-100 text-cyan-800">Retail</span>
     {% elif domain == "BORDER" %}
-        <span class="badge bg-dark">Frontera</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-white">Frontera</span>
     {% elif domain == "CURRENCY" %}
-        <span class="badge bg-secondary">Moneda</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">Moneda</span>
     {% else %}
-        <span class="badge bg-light text-dark">{{ domain or '-' }}</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-50 text-gray-500">{{ domain or '-' }}</span>
     {% endif %}
 {% endmacro %}
 
 {% macro module_badge(module) %}
-    {% set colors = {
-        'INVOICING': 'primary',
-        'TAX_REPORTING': 'info',
-        'INVENTORY': 'success',
-        'ACCOUNTING': 'warning',
-        'POS': 'secondary',
-        'REGULATORY_COMPLIANCE': 'danger'
+    {% set styles = {
+        'INVOICING': 'bg-blue-100 text-blue-800',
+        'TAX_REPORTING': 'bg-cyan-100 text-cyan-800',
+        'INVENTORY': 'bg-green-100 text-green-800',
+        'ACCOUNTING': 'bg-yellow-100 text-yellow-800',
+        'POS': 'bg-gray-200 text-gray-700',
+        'REGULATORY_COMPLIANCE': 'bg-red-100 text-red-800'
     } %}
     {% set names = {
         'INVOICING': 'Facturacion',
@@ -43,20 +43,20 @@
         'POS': 'Punto de Venta',
         'REGULATORY_COMPLIANCE': 'Cumplimiento Reg.'
     } %}
-    <span class="badge bg-{{ colors.get(module, 'light') }} {% if module not in colors %}text-dark{% endif %}">
+    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold {{ styles.get(module, 'bg-gray-50 text-gray-500') }}">
         {{ names.get(module, module or '-') }}
     </span>
 {% endmacro %}
 
 {% macro source_badge(source) %}
     {% if source == "DOF" %}
-        <span class="badge bg-dark">DOF</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-white">DOF</span>
     {% elif source == "COFEPRIS" %}
-        <span class="badge bg-success">COFEPRIS</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">COFEPRIS</span>
     {% elif source == "SAT" %}
-        <span class="badge bg-primary">SAT</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">SAT</span>
     {% else %}
-        <span class="badge bg-secondary">{{ source or 'DOF' }}</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">{{ source or 'DOF' }}</span>
     {% endif %}
 {% endmacro %}
 
@@ -65,23 +65,23 @@
     {% set pct = ((v / max_val) * 100) | int if max_val > 0 else 0 %}
     {% set pct = [pct, 100] | min %}
     {% if not color_class %}
-        {% if v >= 5 %}{% set color_class = "bg-danger" %}
-        {% elif v >= 3 %}{% set color_class = "bg-warning" %}
-        {% elif v >= 1 %}{% set color_class = "bg-info" %}
-        {% else %}{% set color_class = "bg-secondary" %}
+        {% if v >= 5 %}{% set color_class = "bg-red-500" %}
+        {% elif v >= 3 %}{% set color_class = "bg-yellow-500" %}
+        {% elif v >= 1 %}{% set color_class = "bg-cyan-500" %}
+        {% else %}{% set color_class = "bg-gray-400" %}
         {% endif %}
     {% endif %}
-    <div class="d-flex align-items-center mb-1">
-        <small class="text-muted me-2" style="min-width: 160px;">{{ label }}</small>
-        <div class="progress flex-grow-1" style="height: 20px;">
+    <div class="flex items-center mb-1.5">
+        <span class="text-xs text-gray-500 w-40 shrink-0">{{ label }}</span>
+        <div class="flex-1 bg-gray-200 rounded-full h-5 overflow-hidden">
             {% if v > 0 %}
-            <div class="progress-bar {{ color_class }}" style="width: {{ pct }}%">
+            <div class="{{ color_class }} h-5 rounded-full text-white text-xs flex items-center justify-center font-medium" style="width: {{ pct }}%; min-width: 24px;">
                 {{ v }}
             </div>
             {% endif %}
         </div>
         {% if v == 0 %}
-        <small class="text-muted ms-2">0</small>
+        <span class="text-xs text-gray-400 ml-2">0</span>
         {% endif %}
     </div>
 {% endmacro %}

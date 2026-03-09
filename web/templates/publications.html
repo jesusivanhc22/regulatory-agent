@@ -4,117 +4,118 @@
 {% block title %}Publicaciones - Monitor Regulatorio{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-list-ul"></i> Publicaciones con Impacto</h2>
+<h2 class="text-2xl font-bold text-gray-800 mb-5"><i class="bi bi-list-ul"></i> Publicaciones con Impacto</h2>
 
 <!-- Filtros -->
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2">
-        <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label small mb-0">Severidad</label>
-                <select name="severity" class="form-select form-select-sm">
-                    <option value="">Todas</option>
-                    <option value="ALTA" {% if severity == 'ALTA' %}selected{% endif %}>ALTA</option>
-                    <option value="MEDIA" {% if severity == 'MEDIA' %}selected{% endif %}>MEDIA</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-0">Dominio</label>
-                <select name="domain" class="form-select form-select-sm">
-                    <option value="">Todos</option>
-                    <option value="HEALTH" {% if domain == 'HEALTH' %}selected{% endif %}>Salud</option>
-                    <option value="FISCAL" {% if domain == 'FISCAL' %}selected{% endif %}>Fiscal</option>
-                    <option value="RETAIL" {% if domain == 'RETAIL' %}selected{% endif %}>Retail</option>
-                    <option value="BORDER" {% if domain == 'BORDER' %}selected{% endif %}>Frontera</option>
-                    <option value="CURRENCY" {% if domain == 'CURRENCY' %}selected{% endif %}>Moneda</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-0">Modulo</label>
-                <select name="module" class="form-select form-select-sm">
-                    <option value="">Todos</option>
-                    <option value="INVOICING" {% if module == 'INVOICING' %}selected{% endif %}>Facturacion</option>
-                    <option value="TAX_REPORTING" {% if module == 'TAX_REPORTING' %}selected{% endif %}>Fiscal</option>
-                    <option value="INVENTORY" {% if module == 'INVENTORY' %}selected{% endif %}>Inventario</option>
-                    <option value="ACCOUNTING" {% if module == 'ACCOUNTING' %}selected{% endif %}>Contabilidad</option>
-                    <option value="POS" {% if module == 'POS' %}selected{% endif %}>Punto de Venta</option>
-                    <option value="REGULATORY_COMPLIANCE" {% if module == 'REGULATORY_COMPLIANCE' %}selected{% endif %}>Cumplimiento Reg.</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-0">Fuente</label>
-                <select name="source" class="form-select form-select-sm">
-                    <option value="">Todas</option>
-                    <option value="DOF" {% if source == 'DOF' %}selected{% endif %}>DOF</option>
-                    <option value="COFEPRIS" {% if source == 'COFEPRIS' %}selected{% endif %}>COFEPRIS</option>
-                    <option value="SAT" {% if source == 'SAT' %}selected{% endif %}>SAT</option>
-                </select>
-            </div>
-            <input type="hidden" name="sort" value="{{ sort_by }}">
-            <input type="hidden" name="dir" value="{{ sort_dir }}">
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100">
-                    <i class="bi bi-funnel"></i> Filtrar
-                </button>
-            </div>
-            {% if severity or domain or module or source %}
-            <div class="col-md-2">
-                <a href="{{ url_for('publications_list') }}" class="btn btn-outline-secondary btn-sm w-100">
-                    <i class="bi bi-x-circle"></i> Limpiar
-                </a>
-            </div>
-            {% endif %}
-        </form>
-    </div>
+<div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+    <form method="get" class="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-0.5">Severidad</label>
+            <select name="severity" class="w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                <option value="">Todas</option>
+                <option value="ALTA" {% if severity == 'ALTA' %}selected{% endif %}>ALTA</option>
+                <option value="MEDIA" {% if severity == 'MEDIA' %}selected{% endif %}>MEDIA</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-0.5">Dominio</label>
+            <select name="domain" class="w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                <option value="">Todos</option>
+                <option value="HEALTH" {% if domain == 'HEALTH' %}selected{% endif %}>Salud</option>
+                <option value="FISCAL" {% if domain == 'FISCAL' %}selected{% endif %}>Fiscal</option>
+                <option value="RETAIL" {% if domain == 'RETAIL' %}selected{% endif %}>Retail</option>
+                <option value="BORDER" {% if domain == 'BORDER' %}selected{% endif %}>Frontera</option>
+                <option value="CURRENCY" {% if domain == 'CURRENCY' %}selected{% endif %}>Moneda</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-0.5">Modulo</label>
+            <select name="module" class="w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                <option value="">Todos</option>
+                <option value="INVOICING" {% if module == 'INVOICING' %}selected{% endif %}>Facturacion</option>
+                <option value="TAX_REPORTING" {% if module == 'TAX_REPORTING' %}selected{% endif %}>Fiscal</option>
+                <option value="INVENTORY" {% if module == 'INVENTORY' %}selected{% endif %}>Inventario</option>
+                <option value="ACCOUNTING" {% if module == 'ACCOUNTING' %}selected{% endif %}>Contabilidad</option>
+                <option value="POS" {% if module == 'POS' %}selected{% endif %}>Punto de Venta</option>
+                <option value="REGULATORY_COMPLIANCE" {% if module == 'REGULATORY_COMPLIANCE' %}selected{% endif %}>Cumplimiento Reg.</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-0.5">Fuente</label>
+            <select name="source" class="w-full rounded-md border-gray-300 text-sm py-1.5 px-2 border focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                <option value="">Todas</option>
+                <option value="DOF" {% if source == 'DOF' %}selected{% endif %}>DOF</option>
+                <option value="COFEPRIS" {% if source == 'COFEPRIS' %}selected{% endif %}>COFEPRIS</option>
+                <option value="SAT" {% if source == 'SAT' %}selected{% endif %}>SAT</option>
+            </select>
+        </div>
+        <input type="hidden" name="sort" value="{{ sort_by }}">
+        <input type="hidden" name="dir" value="{{ sort_dir }}">
+        <div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-1.5 px-3 rounded-md text-sm font-medium hover:bg-blue-700 transition">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+        {% if severity or domain or module or source %}
+        <div>
+            <a href="{{ url_for('publications_list') }}" class="block w-full text-center border border-gray-300 text-gray-600 py-1.5 px-3 rounded-md text-sm hover:bg-gray-50 transition">
+                <i class="bi bi-x-circle"></i> Limpiar
+            </a>
+        </div>
+        {% endif %}
+    </form>
 </div>
 
 <!-- Resultados -->
-<p class="text-muted mb-2">
-    <strong>{{ total }}</strong> publicacion{{ 'es' if total != 1 else '' }} encontrada{{ 's' if total != 1 else '' }}
+<p class="text-gray-500 text-sm mb-2">
+    <strong>{{ total|comma }}</strong> publicacion{{ 'es' if total != 1 else '' }} encontrada{{ 's' if total != 1 else '' }}
 </p>
 
 {% if publications %}
-<div class="table-responsive">
-    <table class="table table-hover bg-white shadow-sm">
-        <thead class="table-dark">
+<div class="overflow-x-auto bg-white rounded-lg shadow-sm">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-800">
             <tr>
-                <th style="width: 90px;">Severidad</th>
-                <th>Titulo</th>
-                <th style="width: 200px;">Resumen IA</th>
-                <th style="width: 90px;">Dominio</th>
-                <th style="width: 140px;">Modulo</th>
-                <th style="width: 80px;">Fuente</th>
-                <th style="width: 100px;">Publicacion</th>
-                <th style="width: 100px;">Entrada en vigor</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Severidad</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Titulo</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-48">Resumen IA</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Dominio</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">Modulo</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Fuente</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">Publicacion</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">En vigor</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody class="divide-y divide-gray-100">
             {% for pub in publications %}
-            <tr>
-                <td>{{ severity_badge(pub.severity) }}</td>
-                <td>
-                    <a href="{{ url_for('publication_detail', pub_id=pub.id) }}" class="text-decoration-none">
+            <tr class="hover:bg-blue-50/50 transition">
+                <td class="px-3 py-2.5">{{ severity_badge(pub.severity) }}</td>
+                <td class="px-3 py-2.5">
+                    <a href="{{ url_for('publication_detail', pub_id=pub.id) }}" class="text-sm font-medium text-gray-800 hover:text-blue-600 transition">
                         {{ pub.title[:120] }}{% if pub.title|length > 120 %}...{% endif %}
                     </a>
                 </td>
-                <td>
+                <td class="px-3 py-2.5">
                     {% if pub.ai_summary %}
-                    <small class="text-muted">{{ pub.ai_summary[:80] }}{% if pub.ai_summary|length > 80 %}...{% endif %}</small>
+                    <span class="text-xs text-gray-500">{{ pub.ai_summary[:80] }}{% if pub.ai_summary|length > 80 %}...{% endif %}</span>
                     {% if pub.ai_priority %}
                     <br>
-                    <span class="badge {% if pub.ai_priority == 'URGENTE' %}bg-danger{% elif pub.ai_priority == 'PLANIFICAR' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size:10px;">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold mt-0.5
+                        {% if pub.ai_priority == 'URGENTE' %}bg-red-100 text-red-800
+                        {% elif pub.ai_priority == 'PLANIFICAR' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
                         {{ pub.ai_priority }}
                     </span>
                     {% endif %}
                     {% else %}
-                    <small class="text-muted">-</small>
+                    <span class="text-xs text-gray-300">-</span>
                     {% endif %}
                 </td>
-                <td>{{ domain_badge(pub.primary_domain) }}</td>
-                <td>{{ module_badge(pub.impacted_module) }}</td>
-                <td>{{ source_badge(pub.source) }}</td>
-                <td><small>{{ pub.publication_date or '-' }}</small></td>
-                <td><small>{{ pub.effective_date or '-' }}</small></td>
+                <td class="px-3 py-2.5">{{ domain_badge(pub.primary_domain) }}</td>
+                <td class="px-3 py-2.5">{{ module_badge(pub.impacted_module) }}</td>
+                <td class="px-3 py-2.5">{{ source_badge(pub.source) }}</td>
+                <td class="px-3 py-2.5 text-xs text-gray-500">{{ pub.publication_date or '-' }}</td>
+                <td class="px-3 py-2.5 text-xs text-gray-500">{{ pub.effective_date or '-' }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -123,35 +124,32 @@
 
 <!-- Paginacion -->
 {% if total_pages > 1 %}
-<nav>
-    <ul class="pagination justify-content-center">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page - 1 }}">
-                &laquo; Anterior
-            </a>
-        </li>
+<nav class="flex justify-center mt-4">
+    <div class="inline-flex items-center space-x-1">
+        <a href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page - 1 }}"
+           class="px-3 py-1.5 text-sm rounded-md border {% if page <= 1 %}border-gray-200 text-gray-300 pointer-events-none{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %} transition">
+            &laquo; Anterior
+        </a>
         {% for p in range(1, total_pages + 1) %}
             {% if p == page %}
-            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            <span class="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white font-medium">{{ p }}</span>
             {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 2 and p <= page + 2) %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ p }}">{{ p }}</a>
-            </li>
+            <a href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ p }}"
+               class="px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition">{{ p }}</a>
             {% elif p == 4 or p == total_pages - 3 %}
-            <li class="page-item disabled"><span class="page-link">...</span></li>
+            <span class="px-2 text-gray-400">...</span>
             {% endif %}
         {% endfor %}
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page + 1 }}">
-                Siguiente &raquo;
-            </a>
-        </li>
-    </ul>
+        <a href="{{ url_for('publications_list') }}?{{ query_string }}&page={{ page + 1 }}"
+           class="px-3 py-1.5 text-sm rounded-md border {% if page >= total_pages %}border-gray-200 text-gray-300 pointer-events-none{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %} transition">
+            Siguiente &raquo;
+        </a>
+    </div>
 </nav>
 {% endif %}
 
 {% else %}
-<div class="alert alert-info">
+<div class="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-4">
     <i class="bi bi-info-circle"></i> No se encontraron publicaciones con los filtros seleccionados.
 </div>
 {% endif %}

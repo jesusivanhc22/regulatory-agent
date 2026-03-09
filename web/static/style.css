@@ -1,56 +1,7 @@
-/* Monitor Regulatorio - Custom Styles */
+/* Monitor Regulatorio - Tailwind Companion Styles */
+/* Only styles that can't be expressed inline with Tailwind */
 
-/* Compact table rows */
-.table td, .table th {
-    vertical-align: middle;
-}
-
-/* Stat cards */
-.card .display-5 {
-    font-weight: 700;
-}
-
-/* Full-text preview */
-.text-preview {
-    max-height: 500px;
-    overflow-y: auto;
-    font-size: 0.82rem;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    line-height: 1.5;
-}
-
-/* Score bars alignment */
-.score-section .progress {
-    height: 20px;
-}
-
-/* Active nav link */
-.navbar .nav-link.active {
-    font-weight: bold;
-    border-bottom: 2px solid #fff;
-}
-
-/* Hover on table rows */
-.table-hover tbody tr:hover {
-    background-color: rgba(13, 110, 253, 0.04);
-}
-
-/* Badge spacing in tables */
-.table .badge {
-    font-size: 0.75rem;
-}
-
-/* Card headers */
-.card-header h6 {
-    font-weight: 600;
-}
-
-/* Publication title link */
-.table a {
-    color: #212529;
-    font-weight: 500;
-}
-.table a:hover {
-    color: #0d6efd;
+/* Alpine.js x-cloak: hide elements until Alpine initializes */
+[x-cloak] {
+    display: none !important;
 }

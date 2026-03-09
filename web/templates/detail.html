@@ -4,219 +4,229 @@
 {% block title %}Detalle - {{ pub.title[:60] }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('publications_list') }}">Publicaciones</a></li>
-        <li class="breadcrumb-item active">Detalle</li>
+<!-- Breadcrumb -->
+<nav class="mb-4">
+    <ol class="flex items-center space-x-2 text-sm text-gray-500">
+        <li><a href="{{ url_for('publications_list') }}" class="hover:text-blue-600 transition">Publicaciones</a></li>
+        <li><i class="bi bi-chevron-right text-xs"></i></li>
+        <li class="text-gray-800 font-medium">Detalle</li>
     </ol>
 </nav>
 
-<div class="d-flex align-items-start mb-3">
+<!-- Header -->
+<div class="flex items-start gap-3 mb-5">
     {{ severity_badge(pub.severity) }}
-    <h3 class="ms-2 mb-0">{{ pub.title }}</h3>
+    <h3 class="text-xl font-bold text-gray-800 leading-snug">{{ pub.title }}</h3>
 </div>
 
-<div class="row g-3">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <!-- Identificacion -->
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Identificacion</h6>
-            </div>
-            <div class="card-body">
-                <table class="table table-sm table-borderless mb-0">
-                    <tr>
-                        <th class="text-muted" style="width: 140px;">URL</th>
-                        <td>
-                            <a href="{{ pub.url }}" target="_blank" class="text-decoration-none">
-                                <i class="bi bi-box-arrow-up-right"></i> Ver en DOF
-                            </a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Fecha publicacion</th>
-                        <td>{{ pub.publication_date or 'No disponible' }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Entrada en vigor</th>
-                        <td>{{ pub.effective_date or 'No detectada' }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Fuente</th>
-                        <td>{{ source_badge(pub.source) }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Estado</th>
-                        <td>
-                            {% if pub.status == 'ANALYZED' %}
-                            <span class="badge bg-success">Analizado</span>
-                            {% elif pub.status == 'CONTENT_FETCHED' %}
-                            <span class="badge bg-info">Con contenido</span>
-                            {% else %}
-                            <span class="badge bg-warning text-dark">Descubierto</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Tipo contenido</th>
-                        <td>{{ pub.content_type or 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Analizado el</th>
-                        <td>{{ pub.analyzed_at or 'Pendiente' }}</td>
-                    </tr>
-                </table>
-            </div>
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden h-full">
+        <div class="px-5 py-3 border-b border-gray-100">
+            <h6 class="text-sm font-semibold text-gray-700"><i class="bi bi-info-circle"></i> Identificacion</h6>
+        </div>
+        <div class="px-5 py-4">
+            <table class="w-full text-sm">
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4 w-36">URL</th>
+                    <td class="py-2">
+                        <a href="{{ pub.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 transition">
+                            <i class="bi bi-box-arrow-up-right"></i> Ver en DOF
+                        </a>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Fecha publicacion</th>
+                    <td class="py-2 text-gray-700">{{ pub.publication_date or 'No disponible' }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Entrada en vigor</th>
+                    <td class="py-2 text-gray-700">{{ pub.effective_date or 'No detectada' }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Fuente</th>
+                    <td class="py-2">{{ source_badge(pub.source) }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Estado</th>
+                    <td class="py-2">
+                        {% if pub.status == 'ANALYZED' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">Analizado</span>
+                        {% elif pub.status == 'CONTENT_FETCHED' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-100 text-cyan-800">Con contenido</span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">Descubierto</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Tipo contenido</th>
+                    <td class="py-2 text-gray-700">{{ pub.content_type or 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Analizado el</th>
+                    <td class="py-2 text-gray-700">{{ pub.analyzed_at or 'Pendiente' }}</td>
+                </tr>
+            </table>
         </div>
     </div>
 
     <!-- Resultado del Analisis -->
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-clipboard-data"></i> Resultado del Analisis</h6>
-            </div>
-            <div class="card-body">
-                <table class="table table-sm table-borderless mb-0">
-                    <tr>
-                        <th class="text-muted" style="width: 140px;">Severidad</th>
-                        <td>{{ severity_badge(pub.severity) }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Dominio</th>
-                        <td>{{ domain_badge(pub.primary_domain) }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Modulo Impactado</th>
-                        <td>{{ module_badge(pub.impacted_module) }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Impacto</th>
-                        <td>
-                            {% if pub.impact_flag == 1 %}
-                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> SI</span>
-                            {% else %}
-                            <span class="badge bg-secondary">No</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Motivo</th>
-                        <td><small>{{ pub.impact_reason or 'N/A' }}</small></td>
-                    </tr>
-                </table>
-            </div>
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden h-full">
+        <div class="px-5 py-3 border-b border-gray-100">
+            <h6 class="text-sm font-semibold text-gray-700"><i class="bi bi-clipboard-data"></i> Resultado del Analisis</h6>
+        </div>
+        <div class="px-5 py-4">
+            <table class="w-full text-sm">
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4 w-36">Severidad</th>
+                    <td class="py-2">{{ severity_badge(pub.severity) }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Dominio</th>
+                    <td class="py-2">{{ domain_badge(pub.primary_domain) }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Modulo Impactado</th>
+                    <td class="py-2">{{ module_badge(pub.impacted_module) }}</td>
+                </tr>
+                <tr class="border-b border-gray-50">
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Impacto</th>
+                    <td class="py-2">
+                        {% if pub.impact_flag == 1 %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                            <i class="bi bi-exclamation-triangle mr-1"></i> SI
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th class="text-gray-400 font-medium text-left py-2 pr-4">Motivo</th>
+                    <td class="py-2 text-gray-600 text-xs">{{ pub.impact_reason or 'N/A' }}</td>
+                </tr>
+            </table>
         </div>
     </div>
 </div>
 
 <!-- Analisis IA -->
 {% if pub.ai_summary %}
-<div class="row g-3 mt-1">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm border-start border-primary border-4">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-robot"></i> Analisis IA
-                    {% if pub.ai_priority %}
-                    <span class="badge ms-2 {% if pub.ai_priority == 'URGENTE' %}bg-danger{% elif pub.ai_priority == 'PLANIFICAR' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                        {{ pub.ai_priority }}
-                    </span>
-                    {% endif %}
+<div class="mt-4">
+    <div class="bg-white rounded-lg shadow-sm border-l-4 border-blue-500 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <h6 class="text-sm font-semibold text-gray-700">
+                <i class="bi bi-robot"></i> Analisis IA
+            </h6>
+            {% if pub.ai_priority %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                {% if pub.ai_priority == 'URGENTE' %}bg-red-100 text-red-800
+                {% elif pub.ai_priority == 'PLANIFICAR' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ pub.ai_priority }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="px-5 py-4 space-y-4">
+            <!-- Resumen -->
+            <div>
+                <h6 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                    <i class="bi bi-chat-text"></i> Resumen Ejecutivo
                 </h6>
+                <p class="text-sm text-gray-700 leading-relaxed">{{ pub.ai_summary }}</p>
             </div>
-            <div class="card-body">
-                <!-- Resumen -->
-                <div class="mb-3">
-                    <h6 class="text-muted mb-1"><i class="bi bi-chat-text"></i> Resumen Ejecutivo</h6>
-                    <p class="mb-0" style="line-height:1.6;">{{ pub.ai_summary }}</p>
-                </div>
 
-                <!-- Acciones Recomendadas -->
-                {% if pub.ai_actions %}
-                <div class="mb-3">
-                    <h6 class="text-muted mb-1"><i class="bi bi-check2-square"></i> Acciones Recomendadas</h6>
-                    <ul class="mb-0">
-                        {% for action in pub.ai_actions | from_json %}
-                        <li>{{ action }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                <!-- Fecha Limite IA -->
-                {% if pub.ai_deadline %}
-                <div>
-                    <h6 class="text-muted mb-1"><i class="bi bi-calendar-event"></i> Fecha Limite</h6>
-                    <span class="badge bg-danger fs-6">{{ pub.ai_deadline }}</span>
-                </div>
-                {% endif %}
+            <!-- Acciones Recomendadas -->
+            {% if pub.ai_actions %}
+            <div>
+                <h6 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                    <i class="bi bi-check2-square"></i> Acciones Recomendadas
+                </h6>
+                <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {% for action in pub.ai_actions | from_json %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
             </div>
+            {% endif %}
+
+            <!-- Fecha Limite IA -->
+            {% if pub.ai_deadline %}
+            <div>
+                <h6 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                    <i class="bi bi-calendar-event"></i> Fecha Limite
+                </h6>
+                <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-bold bg-red-100 text-red-800">
+                    {{ pub.ai_deadline }}
+                </span>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 {% endif %}
 
 <!-- Scores Detallados -->
-<div class="row g-3 mt-1">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Scores por Dominio</h6>
-            </div>
-            <div class="card-body score-section">
-                {{ score_bar("Salud (Health)", pub.health_score) }}
-                {{ score_bar("Fiscal", pub.fiscal_score) }}
-                {{ score_bar("Retail", pub.retail_score) }}
-                {{ score_bar("Region Fronteriza", pub.border_region_score) }}
-                {{ score_bar("Moneda/Divisas", pub.currency_score) }}
-            </div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100">
+            <h6 class="text-sm font-semibold text-gray-700"><i class="bi bi-bar-chart"></i> Scores por Dominio</h6>
+        </div>
+        <div class="px-5 py-4 space-y-2">
+            {{ score_bar("Salud (Health)", pub.health_score) }}
+            {{ score_bar("Fiscal", pub.fiscal_score) }}
+            {{ score_bar("Retail", pub.retail_score) }}
+            {{ score_bar("Region Fronteriza", pub.border_region_score) }}
+            {{ score_bar("Moneda/Divisas", pub.currency_score) }}
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-cpu"></i> Scores por Modulo ERP</h6>
-            </div>
-            <div class="card-body score-section">
-                {{ score_bar("Facturacion", pub.invoicing_score) }}
-                {{ score_bar("Reportes Fiscales", pub.tax_reporting_score) }}
-                {{ score_bar("Inventario", pub.inventory_score) }}
-                {{ score_bar("Contabilidad", pub.accounting_score) }}
-                {{ score_bar("Punto de Venta", pub.pos_score) }}
-                {{ score_bar("Cumplimiento Regulatorio", pub.regulatory_compliance_score) }}
-                <hr class="my-2">
-                {{ score_bar("Obligacion Operativa", pub.operational_obligation_score, color_class="bg-dark") }}
-            </div>
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100">
+            <h6 class="text-sm font-semibold text-gray-700"><i class="bi bi-cpu"></i> Scores por Modulo ERP</h6>
+        </div>
+        <div class="px-5 py-4 space-y-2">
+            {{ score_bar("Facturacion", pub.invoicing_score) }}
+            {{ score_bar("Reportes Fiscales", pub.tax_reporting_score) }}
+            {{ score_bar("Inventario", pub.inventory_score) }}
+            {{ score_bar("Contabilidad", pub.accounting_score) }}
+            {{ score_bar("Punto de Venta", pub.pos_score) }}
+            {{ score_bar("Cumplimiento Regulatorio", pub.regulatory_compliance_score) }}
+            <hr class="border-gray-200 my-2">
+            {{ score_bar("Obligacion Operativa", pub.operational_obligation_score, color_class="bg-gray-800") }}
         </div>
     </div>
 </div>
 
 <!-- Texto Completo -->
 {% if pub.full_text %}
-<div class="card border-0 shadow-sm mt-3">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="bi bi-file-text"></i> Texto Completo</h6>
-        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#fullText">
-            Mostrar / Ocultar
+<div class="bg-white rounded-lg shadow-sm mt-4 overflow-hidden" x-data="{ open: false }">
+    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h6 class="text-sm font-semibold text-gray-700"><i class="bi bi-file-text"></i> Texto Completo</h6>
+        <button @click="open = !open"
+                class="px-3 py-1 text-xs font-medium border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 transition">
+            <span x-text="open ? 'Ocultar' : 'Mostrar'">Mostrar</span>
         </button>
     </div>
-    <div id="fullText" class="collapse">
-        <div class="card-body">
-            <pre class="text-preview bg-light p-3 rounded">{{ pub.full_text[:15000] }}{% if pub.full_text|length > 15000 %}
+    <div x-show="open" x-transition x-cloak>
+        <div class="px-5 py-4">
+            <pre class="bg-gray-50 p-4 rounded-lg text-xs leading-relaxed text-gray-700 max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words">{{ pub.full_text[:15000] }}{% if pub.full_text|length > 15000 %}
 
-... [Texto truncado - {{ pub.full_text|length }} caracteres totales]{% endif %}</pre>
+... [Texto truncado - {{ pub.full_text|length|comma }} caracteres totales]{% endif %}</pre>
         </div>
     </div>
 </div>
 {% endif %}
 
-<div class="mt-3 mb-4">
-    <a href="{{ url_for('publications_list') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Volver a Publicaciones
+<!-- Acciones -->
+<div class="flex gap-3 mt-5 mb-6">
+    <a href="{{ url_for('publications_list') }}"
+       class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+        <i class="bi bi-arrow-left mr-2"></i> Volver a Publicaciones
     </a>
-    <a href="{{ pub.url }}" target="_blank" class="btn btn-outline-primary">
-        <i class="bi bi-box-arrow-up-right"></i> Ver Publicacion Original
+    <a href="{{ pub.url }}" target="_blank"
+       class="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition">
+        <i class="bi bi-box-arrow-up-right mr-2"></i> Ver Publicacion Original
     </a>
 </div>
 {% endblock %}

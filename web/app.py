@@ -91,6 +91,14 @@ def create_app():
         except (json.JSONDecodeError, TypeError):
             return []
 
+    # Filtro Jinja para separador de miles (ej. 2066 → "2,066")
+    @app.template_filter("comma")
+    def comma_filter(value):
+        try:
+            return f"{int(value):,}"
+        except (ValueError, TypeError):
+            return value
+
     # =====================
     # SECURITY HEADERS
     # =====================
