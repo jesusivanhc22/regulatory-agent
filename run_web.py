@@ -10,6 +10,9 @@ import sys
 # Asegurar que el directorio raiz este en el path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from web.app import create_app
 
 if __name__ == "__main__":

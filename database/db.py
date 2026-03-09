@@ -1,74 +1,31 @@
 import logging
-import os
-import sqlite3
-from contextlib import contextmanager
-from pathlib import Path
+
+from database.connection import (
+    get_connection,
+    transaction,
+    execute,
+    executemany,
+    adapt_sql,
+    fetchone_value,
+    init_schema,
+    is_postgres,
+)
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# En deploy (Railway/Render) usa la DB ligera; localmente usa la completa.
-# Si regulatory.db no existe (deploy), cae a regulatory_deploy.db automáticamente.
-_db_name = os.environ.get("DB_NAME", "regulatory.db")
-_db_path = BASE_DIR / "data" / _db_name
-if not _db_path.exists() and _db_name == "regulatory.db":
-    _db_path = BASE_DIR / "data" / "regulatory_deploy.db"
-DB_PATH = _db_path
-
 
 # ==============================
-# CONEXIÓN
-# ==============================
-
-@contextmanager
-def _get_connection():
-    """Context manager que provee una conexión SQLite con commit/rollback automático."""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def get_connection():
-    """Retorna una conexión SQLite con row_factory para acceso por nombre de columna."""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-# ==============================
-# INICIALIZACIÓN (origin/main)
+# INICIALIZACION
 # ==============================
 
 def init_db():
-    """Crea la tabla de publicaciones si no existe."""
-    with _get_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS publications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                url TEXT UNIQUE,
-                status TEXT DEFAULT 'DISCOVERED',
-                category TEXT,
-                priority TEXT,
-                score INTEGER DEFAULT 0,
-                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                analyzed_at TIMESTAMP
-            )
-        """)
+    """Crea las tablas si no existen."""
+    init_schema()
     logger.info("Base de datos inicializada.")
 
 
 # ==============================
-# OPERACIONES BATCH (origin/main)
+# OPERACIONES BATCH
 # ==============================
 
 def save_discovered_batch(publications, source="DOF"):
@@ -87,20 +44,23 @@ def save_discovered_batch(publications, source="DOF"):
     data = [(pub["title"], pub["url"], source, pub.get("publication_date"))
             for pub in publications]
 
-    with _get_connection() as conn:
-        cursor = conn.cursor()
+    with transaction() as conn:
+        count_before = fetchone_value(conn, "SELECT COUNT(*) FROM publications")
 
-        # Contar existentes antes del insert para saber cuántas son nuevas
-        cursor.execute("SELECT COUNT(*) FROM publications")
-        count_before = cursor.fetchone()[0]
+        if is_postgres():
+            executemany(conn,
+                "INSERT INTO publications (title, url, source, publication_date, status) "
+                "VALUES (%s, %s, %s, %s, 'DISCOVERED') ON CONFLICT DO NOTHING",
+                data,
+            )
+        else:
+            executemany(conn,
+                "INSERT OR IGNORE INTO publications (title, url, source, publication_date, status) "
+                "VALUES (?, ?, ?, ?, 'DISCOVERED')",
+                data,
+            )
 
-        cursor.executemany("""
-            INSERT OR IGNORE INTO publications (title, url, source, publication_date, status)
-            VALUES (?, ?, ?, ?, 'DISCOVERED')
-        """, data)
-
-        cursor.execute("SELECT COUNT(*) FROM publications")
-        count_after = cursor.fetchone()[0]
+        count_after = fetchone_value(conn, "SELECT COUNT(*) FROM publications")
 
     new_count = count_after - count_before
     logger.info("[%s] Publicaciones insertadas: %d nuevas de %d scrapeadas.", source, new_count, len(publications))
@@ -108,75 +68,55 @@ def save_discovered_batch(publications, source="DOF"):
 
 
 def get_discovered(limit=100):
-    """Obtiene publicaciones pendientes de análisis (versión con limit).
-
-    Returns:
-        list[tuple]: lista de (id, title, url).
-    """
-    with _get_connection() as conn:
-        cursor = conn.execute("""
-            SELECT id, title, url
-            FROM publications
-            WHERE status = 'DISCOVERED'
-            ORDER BY detected_at ASC
-            LIMIT ?
-        """, (limit,))
-        return cursor.fetchall()
+    """Obtiene publicaciones pendientes de analisis (version con limit)."""
+    conn = get_connection()
+    cursor = execute(conn,
+        "SELECT id, title, url FROM publications "
+        "WHERE status = 'DISCOVERED' ORDER BY detected_at ASC LIMIT ?",
+        (limit,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 
 def mark_as_analyzed(pub_id, category, priority, score):
-    """Marca una publicación como analizada con su clasificación."""
-    with _get_connection() as conn:
-        conn.execute("""
-            UPDATE publications
-            SET status = 'ANALYZED',
-                category = ?,
-                priority = ?,
-                score = ?,
-                analyzed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, (category, priority, score, pub_id))
+    """Marca una publicacion como analizada con su clasificacion."""
+    with transaction() as conn:
+        execute(conn,
+            "UPDATE publications SET status = 'ANALYZED', "
+            "category = ?, priority = ?, score = ?, "
+            "analyzed_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (category, priority, score, pub_id),
+        )
 
 
 def mark_batch_as_analyzed(batch_results):
-    """Marca múltiples publicaciones como analizadas en una sola transacción.
-
-    Args:
-        batch_results: lista de tuples (pub_id, category, priority, score).
-    """
+    """Marca multiples publicaciones como analizadas en una sola transaccion."""
     if not batch_results:
         return
 
-    with _get_connection() as conn:
-        conn.executemany("""
-            UPDATE publications
-            SET status = 'ANALYZED',
-                category = ?,
-                priority = ?,
-                score = ?,
-                analyzed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, [(cat, pri, sc, pid) for pid, cat, pri, sc in batch_results])
+    with transaction() as conn:
+        executemany(conn,
+            "UPDATE publications SET status = 'ANALYZED', "
+            "category = ?, priority = ?, score = ?, "
+            "analyzed_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [(cat, pri, sc, pid) for pid, cat, pri, sc in batch_results],
+        )
 
     logger.info("Batch de %d publicaciones marcadas como analizadas.", len(batch_results))
 
 
 # ==============================
-# CONTENT PIPELINE (stash)
+# CONTENT PIPELINE
 # ==============================
 
 def get_discovered_publications():
-    """
-    Obtiene publicaciones descubiertas que aún no tienen contenido descargado.
-    """
+    """Obtiene publicaciones descubiertas que aun no tienen contenido descargado."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, title, url FROM publications
-        WHERE status = 'DISCOVERED'
-    """)
-
+    cursor = execute(conn,
+        "SELECT id, title, url FROM publications WHERE status = 'DISCOVERED'",
+    )
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -184,39 +124,27 @@ def get_discovered_publications():
 
 def save_content(publication_id: int, raw_html: str, full_text: str,
                  content_type: str = "HTML", pdf_path: str = None, pdf_hash: str = None):
-    """
-    Guarda el contenido descargado y marca como CONTENT_FETCHED.
-    """
+    """Guarda el contenido descargado y marca como CONTENT_FETCHED."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        UPDATE publications SET
-            raw_html = ?,
-            full_text = ?,
-            content_type = ?,
-            pdf_path = ?,
-            pdf_hash = ?,
-            status = 'CONTENT_FETCHED'
-        WHERE id = ?
-    """, (raw_html, full_text, content_type, pdf_path, pdf_hash, publication_id))
-
+    execute(conn,
+        "UPDATE publications SET "
+        "raw_html = ?, full_text = ?, content_type = ?, "
+        "pdf_path = ?, pdf_hash = ?, status = 'CONTENT_FETCHED' "
+        "WHERE id = ?",
+        (raw_html, full_text, content_type, pdf_path, pdf_hash, publication_id),
+    )
     conn.commit()
     conn.close()
 
 
 # ==============================
-# REPROCESSING (stash)
+# REPROCESSING
 # ==============================
 
 def reset_for_reprocessing():
-    """
-    Resetea publicaciones ANALYZED que no tienen contenido para reprocesarlas.
-    """
+    """Resetea publicaciones ANALYZED que no tienen contenido para reprocesarlas."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
+    cursor = execute(conn, """
         UPDATE publications
         SET status = 'DISCOVERED',
             primary_domain = NULL,
@@ -244,7 +172,6 @@ def reset_for_reprocessing():
         WHERE status = 'ANALYZED'
           AND (full_text IS NULL OR full_text = '')
     """)
-
     affected = cursor.rowcount
     conn.commit()
     conn.close()
@@ -252,15 +179,10 @@ def reset_for_reprocessing():
 
 
 def reset_all_analyzed():
-    """
-    Resetea TODAS las publicaciones ANALYZED a CONTENT_FETCHED
-    para re-analizarlas con reglas actualizadas.
-    Solo aplica a las que tienen full_text (contenido descargado).
-    """
+    """Resetea TODAS las publicaciones ANALYZED a CONTENT_FETCHED
+    para re-analizarlas con reglas actualizadas."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
+    cursor = execute(conn, """
         UPDATE publications
         SET status = 'CONTENT_FETCHED',
             primary_domain = NULL,
@@ -289,7 +211,6 @@ def reset_all_analyzed():
           AND full_text IS NOT NULL
           AND full_text != ''
     """)
-
     affected = cursor.rowcount
     conn.commit()
     conn.close()
@@ -297,50 +218,70 @@ def reset_all_analyzed():
 
 
 # ==============================
-# ANALYSIS PIPELINE (stash)
+# ANALYSIS PIPELINE
 # ==============================
 
 def get_pending_publications():
-    """
-    Obtiene publicaciones que ya tienen contenido
-    pero aún no han sido analizadas.
-    """
+    """Obtiene publicaciones que ya tienen contenido pero aun no han sido analizadas."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT * FROM publications
-        WHERE status IN ('DISCOVERED', 'CONTENT_FETCHED')
-    """)
-
+    cursor = execute(conn,
+        "SELECT * FROM publications WHERE status IN ('DISCOVERED', 'CONTENT_FETCHED')",
+    )
     rows = cursor.fetchall()
     conn.close()
     return rows
 
 
-def save_analysis(publication_id: int, analysis_data: dict):
-    """
-    Guarda el resultado del análisis y marca como ANALYZED
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Migraciones: asegurar que columnas nuevas existen
+def _ensure_columns(conn):
+    """Asegura que columnas adicionales existen (solo SQLite, PG las tiene desde schema)."""
+    if is_postgres():
+        return
+    import sqlite3
     for col_sql in [
-        "ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0",
+        "ALTER TABLE publications ADD COLUMN source TEXT",
+        "ALTER TABLE publications ADD COLUMN publication_date TEXT",
         "ALTER TABLE publications ADD COLUMN effective_date TEXT",
+        "ALTER TABLE publications ADD COLUMN raw_html TEXT",
+        "ALTER TABLE publications ADD COLUMN full_text TEXT",
+        "ALTER TABLE publications ADD COLUMN content_type TEXT",
+        "ALTER TABLE publications ADD COLUMN pdf_path TEXT",
+        "ALTER TABLE publications ADD COLUMN pdf_hash TEXT",
+        "ALTER TABLE publications ADD COLUMN primary_domain TEXT",
+        "ALTER TABLE publications ADD COLUMN health_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN fiscal_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN retail_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN border_region_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN currency_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN operational_obligation_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN regulatory_compliance_score INTEGER DEFAULT 0",
+        "ALTER TABLE publications ADD COLUMN invoicing_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN tax_reporting_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN inventory_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN accounting_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN pos_score INTEGER",
+        "ALTER TABLE publications ADD COLUMN impacted_module TEXT",
+        "ALTER TABLE publications ADD COLUMN severity TEXT",
+        "ALTER TABLE publications ADD COLUMN impact_flag INTEGER",
+        "ALTER TABLE publications ADD COLUMN impact_reason TEXT",
         "ALTER TABLE publications ADD COLUMN ai_summary TEXT",
         "ALTER TABLE publications ADD COLUMN ai_actions TEXT",
         "ALTER TABLE publications ADD COLUMN ai_deadline TEXT",
         "ALTER TABLE publications ADD COLUMN ai_priority TEXT",
     ]:
         try:
-            cursor.execute(col_sql)
+            conn.execute(col_sql)
             conn.commit()
         except sqlite3.OperationalError:
-            pass  # La columna ya existe
+            pass
 
-    cursor.execute("""
+
+def save_analysis(publication_id: int, analysis_data: dict):
+    """Guarda el resultado del analisis y marca como ANALYZED."""
+    conn = get_connection()
+
+    _ensure_columns(conn)
+
+    execute(conn, """
         UPDATE publications SET
             primary_domain = ?,
             health_score = ?,
@@ -391,7 +332,7 @@ def save_analysis(publication_id: int, analysis_data: dict):
         analysis_data.get("ai_deadline"),
         analysis_data.get("ai_priority"),
         analysis_data["analyzed_at"],
-        publication_id
+        publication_id,
     ))
 
     conn.commit()
@@ -399,44 +340,25 @@ def save_analysis(publication_id: int, analysis_data: dict):
 
 
 def get_new_impact_publications(since_timestamp: str):
-    """
-    Obtiene publicaciones con impacto que fueron analizadas DESPUÉS
-    de un timestamp dado. Sirve para detectar nuevas publicaciones
-    en cada corrida del pipeline.
-
-    Args:
-        since_timestamp: ISO timestamp (e.g. '2026-03-02 10:00:00')
-
-    Returns:
-        list[Row]: publicaciones nuevas con impacto.
-    """
+    """Obtiene publicaciones con impacto analizadas despues de un timestamp."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT * FROM publications
-        WHERE impact_flag = 1 AND analyzed_at > ?
-        ORDER BY severity DESC, analyzed_at DESC
-    """, (since_timestamp,))
-
+    cursor = execute(conn,
+        "SELECT * FROM publications "
+        "WHERE impact_flag = 1 AND analyzed_at > ? "
+        "ORDER BY severity DESC, analyzed_at DESC",
+        (since_timestamp,),
+    )
     rows = cursor.fetchall()
     conn.close()
     return rows
 
 
 def get_impact_publications():
-    """
-    Obtiene publicaciones con impacto detectado
-    """
+    """Obtiene publicaciones con impacto detectado."""
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT * FROM publications
-        WHERE impact_flag = 1
-        ORDER BY analyzed_at DESC
-    """)
-
+    cursor = execute(conn,
+        "SELECT * FROM publications WHERE impact_flag = 1 ORDER BY analyzed_at DESC",
+    )
     rows = cursor.fetchall()
     conn.close()
     return rows

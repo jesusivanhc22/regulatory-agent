@@ -1,12 +1,12 @@
 """
 Flask dashboard para el sistema de monitoreo regulatorio.
 
-Fase 10: Hardening para produccion.
-- Secret key desde variable de entorno
-- Autenticacion basica en endpoints admin (ADMIN_TOKEN)
+Fase 11: PostgreSQL + Autenticacion con Flask-Login.
+- Soporte dual SQLite/PostgreSQL via DATABASE_URL
+- Login con roles Admin/Viewer
+- Gestion de usuarios (admin)
 - Health check endpoint (/health)
-- Security headers (X-Frame, X-XSS, etc.)
-- Error handlers (404, 500)
+- Security headers
 """
 
 import json
@@ -15,7 +15,6 @@ import sys
 import threading
 import logging
 import secrets
-from functools import wraps
 from datetime import datetime
 
 # Asegurar que el directorio raiz del proyecto este en el path
@@ -25,12 +24,23 @@ from flask import (
     Flask, render_template, request, redirect,
     url_for, flash, jsonify,
 )
+from flask_login import login_required, current_user
 
 from web.db_queries import (
     get_summary_stats,
     get_filtered_publications,
     get_publication_by_id,
     get_pipeline_counts,
+)
+from web.auth import (
+    auth_bp,
+    login_manager,
+    admin_required,
+    ensure_users_table,
+    create_initial_admin,
+    get_all_users,
+    create_user,
+    toggle_user_active,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,51 +51,6 @@ _pipeline_state = {
     "last_action": None,
     "last_error": None,
 }
-
-# =====================
-# AUTENTICACION ADMIN
-# =====================
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
-
-
-def _check_admin_auth():
-    """Verifica autenticacion para endpoints admin.
-
-    Metodos soportados:
-    1. Header: Authorization: Bearer <ADMIN_TOKEN>
-    2. Query param: ?token=<ADMIN_TOKEN>
-    3. Form data: token=<ADMIN_TOKEN>
-    4. Si ADMIN_TOKEN no esta configurado, permitir (desarrollo local).
-    """
-    if not ADMIN_TOKEN:
-        return True  # Sin token configurado = desarrollo local
-
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer ") and auth_header[7:] == ADMIN_TOKEN:
-        return True
-
-    if request.args.get("token") == ADMIN_TOKEN:
-        return True
-
-    if request.form.get("token") == ADMIN_TOKEN:
-        return True
-
-    return False
-
-
-def admin_required(f):
-    """Decorator para proteger endpoints admin."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not _check_admin_auth():
-            logger.warning("Acceso no autorizado a %s desde %s",
-                           request.path, request.remote_addr)
-            if request.path.startswith("/api/"):
-                return jsonify({"error": "No autorizado"}), 401
-            flash("Acceso no autorizado.", "danger")
-            return redirect(url_for("index"))
-        return f(*args, **kwargs)
-    return decorated
 
 
 def create_app():
@@ -101,10 +66,24 @@ def create_app():
         secrets.token_hex(32),
     )
 
+    # =====================
+    # FLASK-LOGIN
+    # =====================
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Inicie sesion para acceder."
+    login_manager.login_message_category = "info"
+
+    app.register_blueprint(auth_bp)
+
+    # Crear tabla users y admin inicial
+    with app.app_context():
+        ensure_users_table()
+        create_initial_admin()
+
     # Filtro Jinja para parsear JSON (usado en templates para ai_actions)
     @app.template_filter("from_json")
     def from_json_filter(value):
-        """Parsea string JSON a objeto Python para uso en templates."""
         if not value:
             return []
         try:
@@ -142,15 +121,15 @@ def create_app():
         return redirect(url_for("index"))
 
     # =====================
-    # HEALTH CHECK
+    # HEALTH CHECK (publico)
     # =====================
     @app.route("/health")
     def health_check():
         """Endpoint de health check para Railway / load balancers."""
         try:
-            from database.db import get_connection
+            from database.connection import get_connection
             conn = get_connection()
-            conn.execute("SELECT 1")
+            conn.cursor().execute("SELECT 1")
             conn.close()
             db_ok = True
         except Exception:
@@ -163,13 +142,14 @@ def create_app():
             "status": status,
             "timestamp": datetime.utcnow().isoformat(),
             "database": "ok" if db_ok else "error",
-            "version": "1.0.0",
+            "version": "2.0.0",
         }), code
 
     # =====================
     # RESUMEN (index)
     # =====================
     @app.route("/")
+    @login_required
     def index():
         try:
             stats = get_summary_stats()
@@ -182,6 +162,7 @@ def create_app():
     # PUBLICACIONES (tabla)
     # =====================
     @app.route("/publicaciones")
+    @login_required
     def publications_list():
         severity = request.args.get("severity", "")
         domain = request.args.get("domain", "")
@@ -241,6 +222,7 @@ def create_app():
     # DETALLE
     # =====================
     @app.route("/publicaciones/<int:pub_id>")
+    @login_required
     def publication_detail(pub_id):
         pub = get_publication_by_id(pub_id)
         if not pub:
@@ -252,6 +234,7 @@ def create_app():
     # PIPELINE (protegido)
     # =====================
     @app.route("/pipeline")
+    @login_required
     def pipeline_status():
         counts = get_pipeline_counts()
         return render_template(
@@ -313,9 +296,51 @@ def create_app():
         return redirect(url_for("pipeline_status"))
 
     # =====================
+    # GESTION DE USUARIOS
+    # =====================
+    @app.route("/usuarios")
+    @admin_required
+    def users_list():
+        users = get_all_users()
+        return render_template("users.html", users=users)
+
+    @app.route("/usuarios/crear", methods=["POST"])
+    @admin_required
+    def users_create():
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "").strip()
+        role = request.form.get("role", "viewer")
+        name = request.form.get("name", "").strip()
+
+        if not email or not password:
+            flash("Email y contrasena son obligatorios.", "danger")
+            return redirect(url_for("users_list"))
+
+        if role not in ("admin", "viewer"):
+            role = "viewer"
+
+        if create_user(email, password, role=role, name=name or None):
+            flash(f"Usuario {email} creado como {role}.", "success")
+        else:
+            flash("Error creando usuario. Verifique que el email no exista.", "danger")
+
+        return redirect(url_for("users_list"))
+
+    @app.route("/usuarios/<int:user_id>/toggle", methods=["POST"])
+    @admin_required
+    def users_toggle(user_id):
+        if user_id == current_user.id:
+            flash("No puede desactivar su propia cuenta.", "warning")
+            return redirect(url_for("users_list"))
+        toggle_user_active(user_id)
+        flash("Estado del usuario actualizado.", "info")
+        return redirect(url_for("users_list"))
+
+    # =====================
     # API JSON
     # =====================
     @app.route("/api/stats")
+    @login_required
     def api_stats():
         try:
             stats = get_summary_stats()
@@ -328,7 +353,7 @@ def create_app():
             return jsonify({"error": "Error obteniendo estadisticas"}), 500
 
     # =====================
-    # WEBHOOK TEST (protegido)
+    # WEBHOOK TEST (admin)
     # =====================
     @app.route("/api/webhook/test", methods=["POST"])
     @admin_required

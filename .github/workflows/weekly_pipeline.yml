@@ -2,13 +2,15 @@ name: Weekly Regulatory Pipeline
 
 on:
   schedule:
-    # Cada lunes a las 7:00 AM hora de México (CST = UTC-6)
+    # Cada lunes a las 7:00 AM hora de Mexico (CST = UTC-6)
     - cron: '0 13 * * 1'
-  workflow_dispatch:  # Permite ejecución manual desde GitHub
+  workflow_dispatch:  # Permite ejecucion manual desde GitHub
 
 env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
   WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
   WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
   run-pipeline:
@@ -28,74 +30,5 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Download existing DB
-        uses: actions/download-artifact@v4
-        with:
-          name: regulatory-db
-          path: data/
-        continue-on-error: true  # Primera corrida no tendrá artifact
-
-      - name: Use deploy DB as base if no full DB exists
-        run: |
-          if [ ! -f data/regulatory.db ]; then
-            echo "No DB found, using deploy DB as seed..."
-            cp data/regulatory_deploy.db data/regulatory.db
-          fi
-
       - name: Run full pipeline
         run: python main.py
-
-      - name: Upload updated DB
-        uses: actions/upload-artifact@v4
-        with:
-          name: regulatory-db
-          path: data/regulatory.db
-          retention-days: 90
-          overwrite: true
-
-      - name: Upload deploy DB for Railway
-        run: |
-          python -c "
-          import sqlite3, os
-          src = 'data/regulatory.db'
-          dst = 'data/regulatory_deploy.db'
-          if os.path.exists(dst):
-              os.remove(dst)
-          src_conn = sqlite3.connect(src)
-          dst_conn = sqlite3.connect(dst)
-          for line in src_conn.iterdump():
-              if line.startswith('INSERT'):
-                  continue
-              try:
-                  dst_conn.execute(line)
-              except:
-                  pass
-          dst_conn.commit()
-          src_conn.row_factory = sqlite3.Row
-          cursor = src_conn.execute('SELECT * FROM publications')
-          cols = [d[0] for d in cursor.description]
-          ph = ','.join(['?' for _ in cols])
-          cn = ','.join(cols)
-          for row in cursor:
-              vals = []
-              for col in cols:
-                  v = row[col]
-                  if col == 'raw_html': v = None
-                  elif col == 'full_text' and v and len(v) > 2000:
-                      v = v[:2000] + '... [truncado]'
-                  vals.append(v)
-              dst_conn.execute(f'INSERT INTO publications ({cn}) VALUES ({ph})', vals)
-          dst_conn.commit()
-          src_conn.close()
-          dst_conn.close()
-          size = os.path.getsize(dst) / (1024*1024)
-          print(f'Deploy DB: {size:.1f} MB')
-          "
-
-      - name: Commit updated deploy DB
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add data/regulatory_deploy.db
-          git diff --cached --quiet || git commit -m "Update deploy DB from weekly pipeline [skip ci]"
-          git push
