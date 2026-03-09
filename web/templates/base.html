@@ -27,10 +27,6 @@
                        class="px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'index' %}bg-gray-700 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} transition">
                         <i class="bi bi-speedometer2"></i> Resumen
                     </a>
-                    <a href="{{ url_for('publications_list') }}"
-                       class="px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'publications_list' %}bg-gray-700 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} transition">
-                        <i class="bi bi-list-ul"></i> Publicaciones
-                    </a>
                     <a href="{{ url_for('pipeline_status') }}"
                        class="px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'pipeline_status' %}bg-gray-700 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} transition">
                         <i class="bi bi-gear"></i> Pipeline
@@ -77,9 +73,6 @@
             <div class="px-2 pt-2 pb-3 space-y-1">
                 <a href="{{ url_for('index') }}" class="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
                     <i class="bi bi-speedometer2"></i> Resumen
-                </a>
-                <a href="{{ url_for('publications_list') }}" class="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
-                    <i class="bi bi-list-ul"></i> Publicaciones
                 </a>
                 <a href="{{ url_for('pipeline_status') }}" class="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
                     <i class="bi bi-gear"></i> Pipeline

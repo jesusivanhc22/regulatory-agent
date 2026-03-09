@@ -42,6 +42,7 @@ from web.auth import (
     create_user,
     toggle_user_active,
     change_user_password,
+    update_user,
 )
 
 logger = logging.getLogger(__name__)
@@ -352,6 +353,31 @@ def create_app():
         else:
             flash("Error creando usuario. Verifique que el email no exista.", "danger")
 
+        return redirect(url_for("users_list"))
+
+    @app.route("/usuarios/<int:user_id>/editar", methods=["POST"])
+    @admin_required
+    def users_edit(user_id):
+        email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip()
+        role = request.form.get("role", "").strip()
+
+        if not email:
+            flash("El email es obligatorio.", "danger")
+            return redirect(url_for("users_list"))
+
+        if role not in ("admin", "viewer"):
+            role = "viewer"
+
+        # No permitir quitarse el propio rol admin
+        if user_id == current_user.id and role != "admin":
+            flash("No puede cambiar su propio rol de administrador.", "warning")
+            return redirect(url_for("users_list"))
+
+        if update_user(user_id, email=email, name=name or None, role=role):
+            flash(f"Usuario {email} actualizado.", "success")
+        else:
+            flash("Error actualizando usuario. Verifique que el email no exista.", "danger")
         return redirect(url_for("users_list"))
 
     @app.route("/usuarios/<int:user_id>/toggle", methods=["POST"])

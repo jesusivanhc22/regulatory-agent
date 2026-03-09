@@ -203,6 +203,38 @@ def toggle_user_active(user_id):
     conn.close()
 
 
+def update_user(user_id, email=None, name=None, role=None):
+    """Actualiza los campos de un usuario (email, nombre, rol)."""
+    fields = []
+    values = []
+    if email is not None:
+        fields.append("email = ?")
+        values.append(email.lower())
+    if name is not None:
+        fields.append("name = ?")
+        values.append(name)
+    if role is not None:
+        fields.append("role = ?")
+        values.append(role)
+    if not fields:
+        return False
+    values.append(user_id)
+    sql = f"UPDATE users SET {', '.join(fields)} WHERE id = ?"
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(adapt_sql(sql), tuple(values))
+        conn.commit()
+        logger.info("Usuario id=%s actualizado: %s", user_id, ", ".join(fields))
+        return True
+    except Exception as e:
+        conn.rollback()
+        logger.error("Error actualizando usuario id=%s: %s", user_id, e)
+        return False
+    finally:
+        conn.close()
+
+
 def change_user_password(user_id, new_password):
     """Cambia la contrasena de un usuario."""
     password_hash = generate_password_hash(new_password)
