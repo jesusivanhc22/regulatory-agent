@@ -203,6 +203,27 @@ def toggle_user_active(user_id):
     conn.close()
 
 
+def change_user_password(user_id, new_password):
+    """Cambia la contrasena de un usuario."""
+    password_hash = generate_password_hash(new_password)
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            adapt_sql("UPDATE users SET password_hash = ? WHERE id = ?"),
+            (password_hash, user_id),
+        )
+        conn.commit()
+        logger.info("Contrasena actualizada para user_id=%s", user_id)
+        return True
+    except Exception as e:
+        conn.rollback()
+        logger.error("Error cambiando contrasena user_id=%s: %s", user_id, e)
+        return False
+    finally:
+        conn.close()
+
+
 def create_initial_admin():
     """Crea el usuario admin inicial desde variables de entorno.
 

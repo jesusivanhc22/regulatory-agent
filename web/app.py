@@ -41,6 +41,7 @@ from web.auth import (
     get_all_users,
     create_user,
     toggle_user_active,
+    change_user_password,
 )
 
 logger = logging.getLogger(__name__)
@@ -164,7 +165,26 @@ def create_app():
         except Exception:
             logger.exception("Error obteniendo estadisticas")
             stats = {}
-        return render_template("index.html", stats=stats)
+
+        # Publicaciones con impacto para tabla inline
+        try:
+            impact_pubs, impact_total = get_filtered_publications(
+                impact_only=True,
+                page=1,
+                per_page=100,
+                sort_by="analyzed_at",
+                sort_dir="DESC",
+            )
+        except Exception:
+            logger.exception("Error obteniendo publicaciones con impacto")
+            impact_pubs, impact_total = [], 0
+
+        return render_template(
+            "index.html",
+            stats=stats,
+            publications=impact_pubs,
+            impact_total=impact_total,
+        )
 
     # =====================
     # PUBLICACIONES (tabla)
@@ -342,6 +362,20 @@ def create_app():
             return redirect(url_for("users_list"))
         toggle_user_active(user_id)
         flash("Estado del usuario actualizado.", "info")
+        return redirect(url_for("users_list"))
+
+    @app.route("/usuarios/<int:user_id>/password", methods=["POST"])
+    @admin_required
+    def users_change_password(user_id):
+        new_password = request.form.get("new_password", "").strip()
+        if not new_password or len(new_password) < 6:
+            flash("La contrasena debe tener al menos 6 caracteres.", "danger")
+            return redirect(url_for("users_list"))
+
+        if change_user_password(user_id, new_password):
+            flash("Contrasena actualizada exitosamente.", "success")
+        else:
+            flash("Error actualizando contrasena.", "danger")
         return redirect(url_for("users_list"))
 
     # =====================
