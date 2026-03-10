@@ -55,6 +55,13 @@ def get_summary_stats():
     """)
     stats["by_source"] = {dict(row)["src"]: dict(row)["cnt"] for row in cursor.fetchall()}
 
+    # Impacto por fuente (para grafica de cobertura)
+    cursor = execute(conn, """
+        SELECT COALESCE(source, 'DOF') as src, COUNT(*) as cnt
+        FROM publications WHERE impact_flag = 1 GROUP BY src
+    """)
+    stats["impact_by_source"] = {dict(row)["src"]: dict(row)["cnt"] for row in cursor.fetchall()}
+
     conn.close()
     return stats
 

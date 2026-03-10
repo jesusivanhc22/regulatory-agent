@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas - Monitor Regulatorio{% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold text-gray-800 mb-5"><i class="bi bi-bell"></i> Configuracion de Alertas</h2>
+
+<form method="post" action="{{ url_for('alerts_save') }}">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Destinatarios -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-700">
+                    <i class="bi bi-people mr-1"></i> Destinatarios
+                </h3>
+                <p class="text-xs text-gray-400 mt-0.5">Seleccione los usuarios que recibiran las alertas</p>
+            </div>
+            <div class="p-5 space-y-3">
+                {% for user in users %}
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition
+                       {% if not user.active %}opacity-50{% endif %}">
+                    <input type="checkbox" name="recipients" value="{{ user.email }}"
+                           {% if user.email in config.recipients %}checked{% endif %}
+                           {% if not user.active %}disabled{% endif %}
+                           class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                    <div class="flex-1">
+                        <span class="text-sm font-medium text-gray-800">{{ user.name or user.email.split('@')[0] }}</span>
+                        <span class="block text-xs text-gray-400">{{ user.email }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if user.role == 'admin' %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700">Admin</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-100 text-cyan-700">Viewer</span>
+                        {% endif %}
+                        {% if not user.active %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-500">Inactivo</span>
+                        {% endif %}
+                    </div>
+                </label>
+                {% else %}
+                <p class="text-sm text-gray-400 text-center py-4">No hay usuarios registrados.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Horario + Webhook -->
+        <div class="space-y-6">
+            <!-- Horario -->
+            <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div class="px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-700">
+                        <i class="bi bi-clock mr-1"></i> Horario de Envio
+                    </h3>
+                    <p class="text-xs text-gray-400 mt-0.5">Configure el dia y hora del envio automatizado</p>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Dia de la semana</label>
+                        <select name="schedule_day"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition">
+                            {% set days = [
+                                ('monday', 'Lunes'), ('tuesday', 'Martes'), ('wednesday', 'Miercoles'),
+                                ('thursday', 'Jueves'), ('friday', 'Viernes'),
+                                ('saturday', 'Sabado'), ('sunday', 'Domingo')
+                            ] %}
+                            {% for value, label in days %}
+                            <option value="{{ value }}" {% if config.schedule_day == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Hora (formato 24h)</label>
+                        <select name="schedule_hour"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition">
+                            {% for h in range(24) %}
+                            <option value="{{ h }}" {% if config.schedule_hour == h|string %}selected{% endif %}>
+                                {{ '%02d'|format(h) }}:00
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Webhook Info -->
+            <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div class="px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-700">
+                        <i class="bi bi-link-45deg mr-1"></i> Webhook
+                    </h3>
+                </div>
+                <div class="p-5">
+                    {% if webhook_url %}
+                    <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-green-500"></span>
+                        <div>
+                            <p class="text-sm text-gray-700">Webhook configurado</p>
+                            <p class="text-xs text-gray-400 mt-0.5 break-all">{{ webhook_url[:60] }}{% if webhook_url|length > 60 %}...{% endif %}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-gray-300"></span>
+                        <div>
+                            <p class="text-sm text-gray-500">Sin webhook configurado</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Configure la variable WEBHOOK_URL en Railway</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resumen configuracion actual -->
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Configuracion actual</h4>
+                <div class="space-y-1 text-sm text-gray-600">
+                    <p><i class="bi bi-people text-gray-400 mr-1"></i> {{ config.recipients|length }} destinatario{{ 's' if config.recipients|length != 1 }}</p>
+                    {% set day_names = {'monday':'Lunes','tuesday':'Martes','wednesday':'Miercoles','thursday':'Jueves','friday':'Viernes','saturday':'Sabado','sunday':'Domingo'} %}
+                    <p><i class="bi bi-calendar-event text-gray-400 mr-1"></i> {{ day_names.get(config.schedule_day, config.schedule_day) }}</p>
+                    <p><i class="bi bi-clock text-gray-400 mr-1"></i> {{ '%02d'|format(config.schedule_hour|int) }}:00 hrs</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guardar -->
+    <div class="flex justify-end">
+        <button type="submit"
+                class="px-6 py-2.5 bg-red-700 text-white rounded-lg text-sm font-medium hover:bg-red-800 transition shadow-sm">
+            <i class="bi bi-check-lg mr-1"></i> Guardar Configuracion
+        </button>
+    </div>
+</form>
+{% endblock %}

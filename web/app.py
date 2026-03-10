@@ -44,6 +44,11 @@ from web.auth import (
     change_user_password,
     update_user,
 )
+from web.alerts import (
+    ensure_alert_config_table,
+    get_alert_config,
+    save_alert_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +113,10 @@ def create_app():
 
     app.register_blueprint(auth_bp)
 
-    # Crear tabla users y admin inicial
+    # Crear tablas y admin inicial
     with app.app_context():
         ensure_users_table()
+        ensure_alert_config_table()
         create_initial_admin()
         _log_db_health()
 
@@ -451,6 +457,44 @@ def create_app():
         else:
             flash("Error actualizando contrasena.", "danger")
         return redirect(url_for("users_list"))
+
+    # =====================
+    # ALERTAS (config)
+    # =====================
+    @app.route("/alertas")
+    @admin_required
+    def alerts_config():
+        users = get_all_users()
+        config = get_alert_config()
+        webhook_url = os.environ.get("WEBHOOK_URL", "")
+        return render_template(
+            "alertas.html",
+            users=users,
+            config=config,
+            webhook_url=webhook_url,
+        )
+
+    @app.route("/alertas/guardar", methods=["POST"])
+    @admin_required
+    def alerts_save():
+        recipients = request.form.getlist("recipients")
+        schedule_day = request.form.get("schedule_day", "monday")
+        schedule_hour = request.form.get("schedule_hour", "9")
+
+        if schedule_day not in (
+            "monday", "tuesday", "wednesday", "thursday",
+            "friday", "saturday", "sunday",
+        ):
+            schedule_day = "monday"
+
+        try:
+            schedule_hour = str(int(schedule_hour) % 24)
+        except (ValueError, TypeError):
+            schedule_hour = "9"
+
+        save_alert_config(recipients, schedule_day, schedule_hour)
+        flash("Configuracion de alertas actualizada.", "success")
+        return redirect(url_for("alerts_config"))
 
     # =====================
     # API JSON

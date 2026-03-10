@@ -1,107 +1,95 @@
 {% extends "base.html" %}
 {% from "_macros.html" import severity_badge, domain_badge, module_badge, source_badge %}
 
-{% block title %}Resumen - Monitor Regulatorio{% endblock %}
+{% block title %}Dashboard - Monitor Regulatorio{% endblock %}
 
 {% block content %}
-<h2 class="text-2xl font-bold text-gray-800 mb-5"><i class="bi bi-speedometer2"></i> Resumen General</h2>
+{% set pending = stats.by_status.get('DISCOVERED', 0) + stats.by_status.get('CONTENT_FETCHED', 0) %}
 
-<!-- Stat Cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
-        <p class="text-sm text-gray-500 mb-1">Total Publicaciones</p>
-        <p class="text-4xl font-bold text-gray-900">{{ stats.total|comma }}</p>
-        <p class="text-xs text-gray-400 mt-1">
-            {% if stats.last_analyzed %}
-            Ultimo analisis: {{ stats.last_analyzed[:10] }}
-            {% else %}
-            Sin analisis
-            {% endif %}
+<!-- KPI Cards (row 1) -->
+<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-400">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Total Publicaciones</p>
+            <i class="bi bi-file-earmark text-gray-300"></i>
+        </div>
+        <p class="text-2xl font-bold text-gray-900">{{ stats.total|comma }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-cyan-400">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Con Impacto</p>
+            <i class="bi bi-graph-up text-cyan-400"></i>
+        </div>
+        <p class="text-2xl font-bold text-cyan-600">{{ stats.impact_count|comma }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Severidad ALTA</p>
+            <i class="bi bi-exclamation-triangle text-red-400"></i>
+        </div>
+        <p class="text-2xl font-bold text-red-600">{{ stats.by_severity.get('ALTA', 0)|comma }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-400">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Severidad MEDIA</p>
+            <i class="bi bi-shield-exclamation text-yellow-400"></i>
+        </div>
+        <p class="text-2xl font-bold text-yellow-600">{{ stats.by_severity.get('MEDIA', 0)|comma }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-400">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Pend. Analisis</p>
+            <i class="bi bi-hourglass-split text-orange-400"></i>
+        </div>
+        <p class="text-2xl font-bold text-orange-600">{{ pending|comma }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-400">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">Ultimo Analisis</p>
+            <i class="bi bi-calendar-check text-green-400"></i>
+        </div>
+        <p class="text-lg font-bold text-green-700">
+            {% if stats.last_analyzed %}{{ stats.last_analyzed[:10] }}{% else %}-{% endif %}
         </p>
     </div>
-    <div class="bg-cyan-50 rounded-lg shadow-sm p-6 text-center border border-cyan-100">
-        <p class="text-sm text-gray-500 mb-1">Con Impacto</p>
-        <p class="text-4xl font-bold text-cyan-600">{{ stats.impact_count|comma }}</p>
-        <p class="text-xs text-gray-400 mt-1">Publicaciones ALTA + MEDIA</p>
+</div>
+
+<!-- Charts row 1 (2x2) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-pie-chart mr-1"></i> Por Severidad</h3>
+        <div style="height: 260px;"><canvas id="chartSeverity"></canvas></div>
     </div>
-    <div class="bg-red-50 rounded-lg shadow-sm p-6 text-center border border-red-100">
-        <p class="text-sm text-gray-500 mb-1">Severidad ALTA</p>
-        <p class="text-4xl font-bold text-red-600">{{ stats.by_severity.get('ALTA', 0)|comma }}</p>
-        <p class="text-xs text-gray-400 mt-1">Requieren atencion inmediata</p>
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-broadcast mr-1"></i> Por Fuente</h3>
+        <div style="height: 260px;"><canvas id="chartSource"></canvas></div>
     </div>
-    <div class="bg-yellow-50 rounded-lg shadow-sm p-6 text-center border border-yellow-100">
-        <p class="text-sm text-gray-500 mb-1">Severidad MEDIA</p>
-        <p class="text-4xl font-bold text-yellow-600">{{ stats.by_severity.get('MEDIA', 0)|comma }}</p>
-        <p class="text-xs text-gray-400 mt-1">Monitorear cambios</p>
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-globe mr-1"></i> Por Dominio</h3>
+        <div style="height: 260px;"><canvas id="chartDomain"></canvas></div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-cpu mr-1"></i> Por Modulo ERP</h3>
+        <div style="height: 260px;"><canvas id="chartModule"></canvas></div>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-    <!-- Por Dominio -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700"><i class="bi bi-pie-chart"></i> Por Dominio</h3>
-        </div>
-        <ul class="divide-y divide-gray-100">
-            {% for domain, count in stats.by_domain.items() | sort(attribute='1', reverse=true) %}
-            <li class="flex items-center justify-between px-5 py-2.5">
-                {{ domain_badge(domain) }}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ count|comma }}</span>
-            </li>
-            {% else %}
-            <li class="px-5 py-3 text-gray-400 text-sm">Sin datos</li>
-            {% endfor %}
-        </ul>
+<!-- Charts row 2 (pipeline + coverage) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-activity mr-1"></i> Estado del Pipeline</h3>
+        <div style="height: 260px;"><canvas id="chartPipeline"></canvas></div>
     </div>
-
-    <!-- Por Modulo ERP -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700"><i class="bi bi-cpu"></i> Por Modulo ERP</h3>
-        </div>
-        <ul class="divide-y divide-gray-100">
-            {% for mod, count in stats.by_module.items() | sort(attribute='1', reverse=true) %}
-            <li class="flex items-center justify-between px-5 py-2.5">
-                {{ module_badge(mod) }}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ count|comma }}</span>
-            </li>
-            {% else %}
-            <li class="px-5 py-3 text-gray-400 text-sm">Sin datos</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- Pipeline -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700"><i class="bi bi-gear"></i> Estado del Pipeline</h3>
-        </div>
-        <ul class="divide-y divide-gray-100">
-            <li class="flex items-center justify-between px-5 py-2.5">
-                <span class="text-sm text-gray-600"><i class="bi bi-search text-blue-500"></i> Descubiertas</span>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{{ stats.by_status.get('DISCOVERED', 0)|comma }}</span>
-            </li>
-            <li class="flex items-center justify-between px-5 py-2.5">
-                <span class="text-sm text-gray-600"><i class="bi bi-download text-cyan-500"></i> Con Contenido</span>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700">{{ stats.by_status.get('CONTENT_FETCHED', 0)|comma }}</span>
-            </li>
-            <li class="flex items-center justify-between px-5 py-2.5">
-                <span class="text-sm text-gray-600"><i class="bi bi-check-circle text-green-500"></i> Analizadas</span>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ stats.by_status.get('ANALYZED', 0)|comma }}</span>
-            </li>
-        </ul>
-        <div class="px-5 py-3 border-t border-gray-100 text-center">
-            <a href="{{ url_for('pipeline_status') }}" class="text-sm text-gray-500 hover:text-blue-600 transition">
-                <i class="bi bi-gear"></i> Ir al Pipeline
-            </a>
-        </div>
+    <div class="bg-white rounded-lg shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-bar-chart mr-1"></i> Cobertura de Impacto por Fuente</h3>
+        <div style="height: 260px;"><canvas id="chartCoverage"></canvas></div>
     </div>
 </div>
 
-<!-- Publicaciones con Impacto (inline) -->
+<!-- Publicaciones con Impacto (inline table) -->
 <div x-data="{ open: true }">
     <button @click="open = !open"
-            class="w-full flex items-center justify-between px-5 py-3 bg-blue-600 text-white font-medium rounded-t-lg hover:bg-blue-700 transition shadow-sm"
+            class="w-full flex items-center justify-between px-5 py-3 bg-gray-800 text-white font-medium rounded-t-lg hover:bg-gray-700 transition shadow-sm"
             :class="{ 'rounded-b-lg': !open }">
         <span><i class="bi bi-list-ul mr-2"></i> Publicaciones con Impacto ({{ impact_total|comma }})</span>
         <i class="bi transition-transform duration-200" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
@@ -111,16 +99,15 @@
         {% if publications %}
         <div class="overflow-x-auto bg-white rounded-b-lg shadow-sm">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-800">
+                <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Severidad</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Titulo</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-48">Resumen IA</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Dominio</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">Modulo</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">Fuente</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">Publicacion</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">En vigor</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Severidad</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titulo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Resumen IA</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Dominio</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Modulo</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Fuente</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Publicacion</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -152,14 +139,14 @@
                         <td class="px-3 py-2.5">{{ module_badge(pub.impacted_module) }}</td>
                         <td class="px-3 py-2.5">{{ source_badge(pub.source) }}</td>
                         <td class="px-3 py-2.5 text-xs text-gray-500">{{ pub.publication_date or '-' }}</td>
-                        <td class="px-3 py-2.5 text-xs text-gray-500">{{ pub.effective_date or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <div class="bg-white rounded-b-lg shadow-sm p-4 text-center text-gray-400 text-sm">
+        <div class="bg-white rounded-b-lg shadow-sm p-6 text-center text-gray-400 text-sm">
+            <i class="bi bi-inbox text-3xl block mb-2"></i>
             No hay publicaciones con impacto.
         </div>
         {% endif %}
@@ -167,4 +154,147 @@
 </div>
 
 <div class="mb-6"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const severityData = {{ stats.by_severity | default({}) | tojson }};
+    const sourceData = {{ stats.by_source | default({}) | tojson }};
+    const domainData = {{ stats.by_domain | default({}) | tojson }};
+    const moduleData = {{ stats.by_module | default({}) | tojson }};
+    const statusData = {{ stats.by_status | default({}) | tojson }};
+    const impactBySource = {{ stats.impact_by_source | default({}) | tojson }};
+
+    const moduleNames = {
+        'INVOICING': 'Facturacion', 'TAX_REPORTING': 'Fiscal',
+        'INVENTORY': 'Inventario', 'ACCOUNTING': 'Contabilidad',
+        'POS': 'Punto de Venta', 'REGULATORY_COMPLIANCE': 'Cumplimiento Reg.'
+    };
+    const domainNames = {
+        'HEALTH': 'Salud', 'FISCAL': 'Fiscal', 'RETAIL': 'Retail',
+        'BORDER': 'Frontera', 'CURRENCY': 'Moneda'
+    };
+    const sevColors = { 'ALTA': '#dc2626', 'MEDIA': '#f59e0b', 'BAJA': '#9ca3af' };
+
+    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+    Chart.defaults.font.size = 12;
+
+    // 1. Severity Doughnut
+    const sevLabels = Object.keys(severityData);
+    new Chart(document.getElementById('chartSeverity'), {
+        type: 'doughnut',
+        data: {
+            labels: sevLabels,
+            datasets: [{
+                data: Object.values(severityData),
+                backgroundColor: sevLabels.map(k => sevColors[k] || '#6b7280'),
+                borderWidth: 2, borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '40%',
+            plugins: {
+                legend: { position: 'right', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } }
+            }
+        }
+    });
+
+    // 2. Source Bar
+    new Chart(document.getElementById('chartSource'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(sourceData),
+            datasets: [{ label: 'Publicaciones', data: Object.values(sourceData),
+                backgroundColor: '#7c3aed', borderRadius: 6, maxBarThickness: 50 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // 3. Domain Bar
+    new Chart(document.getElementById('chartDomain'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(domainData).map(k => domainNames[k] || k),
+            datasets: [{ label: 'Publicaciones', data: Object.values(domainData),
+                backgroundColor: '#059669', borderRadius: 6, maxBarThickness: 50 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // 4. Module Bar
+    new Chart(document.getElementById('chartModule'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(moduleData).map(k => moduleNames[k] || k),
+            datasets: [{ label: 'Publicaciones', data: Object.values(moduleData),
+                backgroundColor: '#dc2626', borderRadius: 6, maxBarThickness: 50 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // 5. Pipeline Status Doughnut
+    const pipLabels = ['Descubiertas', 'Con Contenido', 'Analizadas'];
+    const pipValues = [
+        statusData['DISCOVERED'] || 0,
+        statusData['CONTENT_FETCHED'] || 0,
+        statusData['ANALYZED'] || 0
+    ];
+    new Chart(document.getElementById('chartPipeline'), {
+        type: 'doughnut',
+        data: {
+            labels: pipLabels.map((l, i) => l + ': ' + pipValues[i]),
+            datasets: [{
+                data: pipValues,
+                backgroundColor: ['#3b82f6', '#06b6d4', '#10b981'],
+                borderWidth: 2, borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '40%',
+            plugins: {
+                legend: { position: 'right', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } }
+            }
+        }
+    });
+
+    // 6. Coverage (Impact by Source) - stacked bar
+    const allSources = Object.keys(sourceData);
+    const totalBySource = allSources.map(s => sourceData[s] || 0);
+    const impactBySourceArr = allSources.map(s => impactBySource[s] || 0);
+    const noImpactArr = totalBySource.map((t, i) => t - impactBySourceArr[i]);
+
+    new Chart(document.getElementById('chartCoverage'), {
+        type: 'bar',
+        data: {
+            labels: allSources,
+            datasets: [
+                { label: 'Con Impacto', data: impactBySourceArr, backgroundColor: '#dc2626', borderRadius: 4, maxBarThickness: 50 },
+                { label: 'Sin Impacto', data: noImpactArr, backgroundColor: '#d1d5db', borderRadius: 4, maxBarThickness: 50 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16 } } },
+            scales: {
+                x: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f3f4f6' } },
+                y: { stacked: true, grid: { display: false } }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}
