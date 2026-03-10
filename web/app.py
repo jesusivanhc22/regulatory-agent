@@ -47,6 +47,36 @@ from web.auth import (
 
 logger = logging.getLogger(__name__)
 
+
+def _log_db_health():
+    """Log el estado de la BD al iniciar para diagnosticar perdida de datos."""
+    try:
+        from database.connection import get_connection, is_postgres
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as cnt FROM users")
+        row = cursor.fetchone()
+        user_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+        cursor.execute("SELECT COUNT(*) as cnt FROM publications")
+        row = cursor.fetchone()
+        pub_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+        cursor.execute("SELECT COUNT(*) as cnt FROM publications WHERE impact_flag = 1")
+        row = cursor.fetchone()
+        impact_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+        conn.close()
+
+        logger.info("=== DB HEALTH CHECK (startup) ===")
+        logger.info("Backend: %s", "PostgreSQL" if is_postgres() else "SQLite")
+        logger.info("Usuarios: %d | Publicaciones: %d | Con impacto: %d",
+                     user_count, pub_count, impact_count)
+        logger.info("=================================")
+
+        if user_count == 0:
+            logger.warning("BD SIN USUARIOS - Posible recreacion de la BD en deploy.")
+    except Exception as e:
+        logger.error("Error en DB health check: %s", e)
+
+
 # Estado del pipeline (simple, para uso interno single-process)
 _pipeline_state = {
     "running": False,
@@ -82,6 +112,7 @@ def create_app():
     with app.app_context():
         ensure_users_table()
         create_initial_admin()
+        _log_db_health()
 
     # Filtro Jinja para parsear JSON (usado en templates para ai_actions)
     @app.template_filter("from_json")
@@ -136,14 +167,28 @@ def create_app():
     @app.route("/health")
     def health_check():
         """Endpoint de health check para Railway / load balancers."""
+        user_count = 0
+        pub_count = 0
+        impact_count = 0
         try:
-            from database.connection import get_connection
+            from database.connection import get_connection, is_postgres
             conn = get_connection()
-            conn.cursor().execute("SELECT 1")
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) as cnt FROM users")
+            row = cur.fetchone()
+            user_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+            cur.execute("SELECT COUNT(*) as cnt FROM publications")
+            row = cur.fetchone()
+            pub_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+            cur.execute("SELECT COUNT(*) as cnt FROM publications WHERE impact_flag = 1")
+            row = cur.fetchone()
+            impact_count = dict(row)["cnt"] if hasattr(row, "keys") else row[0]
+            backend = "postgres" if is_postgres() else "sqlite"
             conn.close()
             db_ok = True
         except Exception:
             db_ok = False
+            backend = "unknown"
 
         status = "healthy" if db_ok else "degraded"
         code = 200 if db_ok else 503
@@ -151,8 +196,11 @@ def create_app():
         return jsonify({
             "status": status,
             "timestamp": datetime.utcnow().isoformat(),
-            "database": "ok" if db_ok else "error",
-            "version": "2.0.0",
+            "database": backend if db_ok else "error",
+            "users": user_count,
+            "publications": pub_count,
+            "impact_publications": impact_count,
+            "version": "2.1.0",
         }), code
 
     # =====================
