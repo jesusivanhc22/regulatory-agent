@@ -332,6 +332,30 @@ def create_app():
             pipeline_state=_pipeline_state,
         )
 
+    @app.route("/pipeline/completo", methods=["POST"])
+    @admin_required
+    def trigger_full_pipeline():
+        if _pipeline_state["running"]:
+            flash("El pipeline ya esta en ejecucion. Espere a que termine.", "warning")
+            return redirect(url_for("pipeline_status"))
+
+        def _run():
+            _pipeline_state["running"] = True
+            _pipeline_state["last_error"] = None
+            try:
+                from main import run_full_pipeline
+                run_full_pipeline()
+                _pipeline_state["last_action"] = "Pipeline completo ejecutado exitosamente"
+            except Exception as e:
+                _pipeline_state["last_error"] = str(e)
+                logger.exception("Error en pipeline completo")
+            finally:
+                _pipeline_state["running"] = False
+
+        threading.Thread(target=_run, daemon=True).start()
+        flash("Pipeline completo iniciado (scraping + contenido + analisis). Actualice la pagina para ver el progreso.", "info")
+        return redirect(url_for("pipeline_status"))
+
     @app.route("/pipeline/analizar", methods=["POST"])
     @admin_required
     def trigger_analysis():
