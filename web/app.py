@@ -356,6 +356,38 @@ def create_app():
         flash("Pipeline completo iniciado (scraping + contenido + analisis). Actualice la pagina para ver el progreso.", "info")
         return redirect(url_for("pipeline_status"))
 
+    @app.route("/pipeline/backfill", methods=["POST"])
+    @admin_required
+    def trigger_backfill():
+        if _pipeline_state["running"]:
+            flash("El pipeline ya esta en ejecucion. Espere a que termine.", "warning")
+            return redirect(url_for("pipeline_status"))
+
+        days = request.form.get("days", 120, type=int)
+        days = min(days, 365)  # maximo 1 año
+
+        def _run():
+            _pipeline_state["running"] = True
+            _pipeline_state["last_error"] = None
+            try:
+                from scrapers.dof_scraper import run_backfill_scraper
+                from main import run_content_pipeline, run_analysis_pipeline
+                total_new = run_backfill_scraper(days=days)
+                _pipeline_state["last_action"] = f"Backfill DOF: {total_new} nuevas publicaciones descubiertas ({days} dias)"
+                if total_new > 0:
+                    run_content_pipeline()
+                    run_analysis_pipeline()
+                    _pipeline_state["last_action"] = f"Backfill completo: {total_new} nuevas descubiertas, contenido descargado y analizado"
+            except Exception as e:
+                _pipeline_state["last_error"] = str(e)
+                logger.exception("Error en backfill")
+            finally:
+                _pipeline_state["running"] = False
+
+        threading.Thread(target=_run, daemon=True).start()
+        flash(f"Backfill DOF iniciado ({days} dias). Este proceso puede tardar varios minutos.", "info")
+        return redirect(url_for("pipeline_status"))
+
     @app.route("/pipeline/analizar", methods=["POST"])
     @admin_required
     def trigger_analysis():

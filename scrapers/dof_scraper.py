@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from database.db import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -143,50 +142,25 @@ def fetch_dof_by_date(date_obj):
 
 
 def run_backfill_scraper(days: int = 120):
+    """Scrapea el DOF histórico por N días y guarda en BD (compatible PG/SQLite)."""
+    from database.db import save_discovered_batch
 
-    print(f"Ejecutando backfill por {days} días...")
+    logger.info("Ejecutando backfill DOF por %d dias...", days)
 
     today = datetime.today()
-    conn = get_connection()
-    cursor = conn.cursor()
+    total_new = 0
 
     for i in range(days):
         target_date = today - timedelta(days=i)
 
-        print(f"Scrapeando fecha: {target_date.date()}")
-
         publications = fetch_dof_by_date(target_date)
 
-        print(f"Publicaciones encontradas: {len(publications)}")
+        if publications:
+            new_count = save_discovered_batch(publications, source="DOF")
+            total_new += new_count
+            if new_count > 0:
+                logger.info("[DOF Backfill] %s: %d nuevas de %d",
+                            target_date.date(), new_count, len(publications))
 
-        for pub in publications:
-
-            # Verificar si ya existe
-            cursor.execute(
-                "SELECT id FROM publications WHERE url = ?",
-                (pub["url"],)
-            )
-
-            if cursor.fetchone():
-                continue  # ya existe, no duplicar
-
-            # Insertar nueva publicación
-            cursor.execute("""
-                INSERT INTO publications (
-                    title,
-                    url,
-                    publication_date,
-                    status
-                ) VALUES (?, ?, ?, ?)
-            """, (
-                pub["title"],
-                pub["url"],
-                target_date.date().isoformat(),
-                "DISCOVERED"
-            ))
-
-        conn.commit()
-
-    conn.close()
-
-    print("Backfill scraping completado.")
+    logger.info("Backfill DOF completado: %d nuevas publicaciones en total.", total_new)
+    return total_new
