@@ -49,6 +49,7 @@ from web.alerts import (
     get_alert_config,
     save_alert_config,
 )
+from database.connection import init_schema
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ def create_app():
 
     # Crear tablas y admin inicial
     with app.app_context():
+        try:
+            init_schema()
+            logger.info("init_schema() completado exitosamente.")
+        except Exception as e:
+            logger.error("ERROR en init_schema(): %s", e)
         ensure_users_table()
         ensure_alert_config_table()
         create_initial_admin()
